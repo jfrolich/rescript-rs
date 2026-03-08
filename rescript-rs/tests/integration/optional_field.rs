@@ -15,9 +15,9 @@ struct OptionalInStruct {
 
 #[test]
 fn in_struct() {
-    let a = "a?: number";
-    let b = "b?: number | null";
-    let c = "c: number | null";
+    let a = "a?: int";
+    let b = "b?: option<int>";
+    let c = "c: option<int>";
     let cfg = Config::from_env();
     assert_eq!(OptionalInStruct::inline(&cfg), format!("{{ {a}, {b}, {c}, }}"));
 }
@@ -34,11 +34,12 @@ fn in_generic_struct() {
     let cfg = Config::from_env();
     assert_eq!(
         GenericOptionalStruct::<()>::decl(&cfg),
-        "type GenericOptionalStruct<T> = { a?: T, };"
+        "type genericoptionalstruct<T> = { a?: T, }"
     )
 }
 
 #[derive(Serialize, TS)]
+#[serde(tag = "type")]
 #[rescript(export, export_to = "optional_field/")]
 enum OptionalInEnum {
     A {
@@ -55,7 +56,7 @@ fn in_enum() {
     let cfg = Config::from_env();
     assert_eq!(
         OptionalInEnum::inline(&cfg),
-        r#"{ "A": { a?: number, } } | { "B": { b: string | null, } }"#
+        "| A({ a?: int, }) | B({ b: option<string>, })"
     );
 }
 
@@ -101,9 +102,9 @@ struct Inline {
 
 #[test]
 fn inline() {
-    let a = "a?: number";
-    let b = "b?: number | null";
-    let c = "c: number | null";
+    let a = "a?: int";
+    let b = "b?: option<int>";
+    let c = "c: option<int>";
     let cfg = Config::from_env();
     assert_eq!(Inline::inline(&cfg), format!("{{ x: {{ {a}, {b}, {c}, }}, }}"));
 }
@@ -138,7 +139,7 @@ fn struct_optional() {
     assert_eq!(
         OptionalStruct::inline(&cfg),
         format!(
-            "{{ a?: number, b?: number, c?: number | null, d: number, e?: number, f?: number, g: string, h: string, }}"
+            "{{ a?: int, b?: int, c?: option<int>, d: int, e?: int, f?: int, g: string, h: string, }}"
         )
     )
 }
@@ -178,7 +179,7 @@ fn struct_nullable() {
     assert_eq!(
         NullableStruct::inline(&cfg),
         format!(
-            "{{ a?: number | null, b?: number | null, c?: number | null, d: number, e?: number | null, f?: number | null, g: string, h: string, i?: number, j: number | null, }}"
+            "{{ a?: option<int>, b?: option<int>, c?: option<int>, d: int, e?: option<int>, f?: option<int>, g: string, h: string, i?: int, j: option<int>, }}"
         )
     )
 }
@@ -196,7 +197,7 @@ fn in_tuple() {
     let cfg = Config::from_env();
     assert_eq!(
         OptionalInTuple::inline(&cfg),
-        format!("[number | null, (number)?, (number | null)?]")
+        format!("(option<int>, (int)?, (option<int>)?)")
     );
 }
 
@@ -217,7 +218,7 @@ fn tuple_optional() {
     let cfg = Config::from_env();
     assert_eq!(
         OptionalTuple::inline(&cfg),
-        "[number, string, string, (number)?, (number)?, (number | null)?]"
+        "(int, string, string, (int)?, (int)?, (option<int>)?)"
     );
 }
 
@@ -238,11 +239,12 @@ fn tuple_nullable() {
     let cfg = Config::from_env();
     assert_eq!(
         NullableTuple::inline(&cfg),
-        "[number, string, string, (number | null)?, (number)?, (number | null)?]"
+        "(int, string, string, (option<int>)?, (int)?, (option<int>)?)"
     );
 }
 
 #[derive(Serialize, TS)]
+#[serde(tag = "type")]
 #[rescript(export, export_to = "optional_field/", optional_fields)]
 enum OptionalFieldsEnum {
     A { a: Option<i32> },
@@ -250,6 +252,7 @@ enum OptionalFieldsEnum {
 }
 
 #[derive(Serialize, TS)]
+#[serde(tag = "type")]
 #[rescript(export, export_to = "optional_field/", optional_fields = nullable)]
 enum OptionalFieldsEnumVariantOverride {
     // Disable `nullable`
@@ -262,6 +265,7 @@ enum OptionalFieldsEnumVariantOverride {
 }
 
 #[derive(Serialize, TS)]
+#[serde(tag = "type")]
 #[rescript(export, export_to = "optional_field/", optional_fields)]
 enum OptionalFieldsEnumNotNullableVariantOverride {
     // Disable `nullable`
@@ -298,26 +302,26 @@ fn optional_fields_enum() {
     let cfg = Config::from_env();
     assert_eq!(
         OptionalFieldsEnum::inline(&cfg),
-        r#"{ "A": { a?: number, } } | { "B": { b: string, c?: boolean, } }"#
+        "| A({ a?: int, }) | B({ b: string, c?: bool, })"
     );
 
     assert_eq!(
         OptionalFieldsEnumVariantOverride::inline(&cfg),
-        r#"{ "A": { a?: number, } } | { "B": { b: string, c: boolean | null, } }"#
+        "| A({ a?: int, }) | B({ b: string, c: option<bool>, })"
     );
 
     assert_eq!(
         OptionalFieldsEnumNotNullableVariantOverride::inline(&cfg),
-        r#"{ "A": { a?: number | null, } } | { "B": { b: string, c: boolean | null, } }"#
+        "| A({ a?: option<int>, }) | B({ b: string, c: option<bool>, })"
     );
 
     assert_eq!(
         OptionalFieldsTaggedEnum::inline(&cfg),
-        r#"{ "type": "A", a?: number, } | { "type": "B", b: string, c?: boolean, }"#
+        "| A({ a?: int, }) | B({ b: string, c?: bool, })"
     );
 
     assert_eq!(
         OptionalFieldsExternallyTaggedEnum::inline(&cfg),
-        r#"{ "type": "A", "data": { a?: number, } } | { "type": "B", "data": { b: string, c?: boolean, } }"#
+        "| A({ data: { a?: int, } }) | B({ data: { b: string, c?: bool, } })"
     );
 }

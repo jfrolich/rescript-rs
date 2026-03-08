@@ -37,10 +37,10 @@ fn struct_properties() {
     assert_eq!(
         Override::inline(&cfg),
         "{ \
-           a: number, \
-           x: { a: number, b: number, c: number, }, \
+           a: int, \
+           x: { a: int, b: int, c: int, }, \
            y: ExternalTypeDef, \
-           z: [number, ExternalTypeDef, number], \
+           z: (int, ExternalTypeDef, int), \
         }"
     );
     assert!(Override::dependencies(&cfg)
@@ -49,7 +49,7 @@ fn struct_properties() {
 }
 
 #[derive(TS)]
-#[rescript(export, export_to = "type_as/")]
+#[rescript(export, export_to = "type_as/", tag = "type", content = "value")]
 enum OverrideEnum {
     A(#[rescript(as = "ExternalTypeDef")] Instant),
     B {
@@ -79,6 +79,7 @@ struct OverrideVariantDef {
 }
 
 #[derive(TS, Serialize)]
+#[serde(tag = "type", content = "value")]
 #[rescript(export, export_to = "type_as/")]
 enum OverrideVariant {
     #[rescript(as = "OverrideVariantDef")]
@@ -95,16 +96,16 @@ enum OverrideVariant {
 #[test]
 fn enum_variants() {
     let a = OverrideVariant::A { x: Instant::now() };
-    assert_eq!(serde_json::to_string(&a).unwrap(), r#"{"A":{"x":0}}"#);
+    assert_eq!(serde_json::to_string(&a).unwrap(), r#"{"type":"A","value":{"x":0}}"#);
     let cfg = Config::from_env();
     assert_eq!(
         OverrideEnum::inline(&cfg),
-        r#"{ "A": ExternalTypeDef } | { "B": { x: ExternalTypeDef, y: number, z: number, } }"#
+        "| A({ value: ExternalTypeDef }) | B({ value: { x: ExternalTypeDef, y: int, z: int, } })"
     );
 
     assert_eq!(
         OverrideVariant::inline(&cfg),
-        r#"{ "A": OverrideVariantDef } | { "B": { y: number, z: number, } }"#
+        "| A({ value: OverrideVariantDef }) | B({ value: { y: int, z: int, } })"
     );
 }
 
@@ -125,6 +126,6 @@ fn complex() {
     let external = ExternalTypeDef::inline(&cfg);
     assert_eq!(
         Outer::inline(&cfg),
-        format!(r#"{{ x?: {external} | null, y?: ExternalTypeDef | null, }}"#)
+        format!("{{ x?: option<{external}>, y?: option<ExternalTypeDef>, }}")
     )
 }

@@ -1,3 +1,5 @@
+#[cfg(feature = "serde-compat")]
+use serde::Serialize;
 use rescript_rs::Config;
 use rescript_rs::TS;
 
@@ -22,6 +24,9 @@ struct TwoParameters<A, B> {
 }
 
 #[derive(TS)]
+#[cfg_attr(feature = "serde-compat", derive(Serialize))]
+#[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
 #[rescript(export, export_to = "generics/flatten/")]
 enum Enum<A, B> {
     A {
@@ -45,13 +50,13 @@ fn flattened_generic_parameters() {
     }
 
     let cfg = Config::from_env();
-    assert_eq!(Item::<()>::decl(&cfg), "type Item<D> = { id: string, } & D;");
+    assert_eq!(Item::<()>::decl(&cfg), "type item<D> = { id: string, } & D");
     assert_eq!(
         TwoParameters::<(), ()>::decl(&cfg),
-        "type TwoParameters<A, B> = { id: string, ab: [A, B], } & A & B;"
+        "type twoparameters<A, B> = { id: string, ab: (A, B), } & A & B"
     );
     assert_eq!(
         Enum::<(), ()>::decl(&cfg),
-        "type Enum<A, B> = { \"A\": A } | { \"B\": B } | { \"AB\": [A, B] };"
+        "@tag(\"type\")\ntype enum<A, B> = | A({ value: A }) | B({ value: B }) | AB({ value: (A, B) })"
     );
 }

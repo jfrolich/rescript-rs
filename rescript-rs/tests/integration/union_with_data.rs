@@ -20,6 +20,8 @@ struct Foo {
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
+#[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
+#[cfg_attr(not(feature = "serde-compat"), ts(tag = "type", content = "value"))]
 #[rescript(export, export_to = "union_with_data/")]
 enum SimpleEnum {
     A(String),
@@ -33,10 +35,10 @@ enum SimpleEnum {
 #[test]
 fn test_stateful_enum() {
     let cfg = Config::from_env();
-    assert_eq!(Bar::decl(&cfg), r#"type Bar = { field: number, };"#);
+    assert_eq!(Bar::decl(&cfg), r#"type bar = { field: int, }"#);
     assert_eq!(Bar::dependencies(&cfg), vec![]);
 
-    assert_eq!(Foo::decl(&cfg), r#"type Foo = { bar: Bar, };"#);
+    assert_eq!(Foo::decl(&cfg), r#"type foo = { bar: Bar, }"#);
     assert_eq!(
         Foo::dependencies(&cfg),
         vec![Dependency::from_ty::<Bar>(&cfg).unwrap()]
@@ -44,7 +46,7 @@ fn test_stateful_enum() {
 
     assert_eq!(
         SimpleEnum::decl(&cfg),
-        r#"type SimpleEnum = { "A": string } | { "B": number } | "C" | { "D": [string, number] } | { "E": Foo } | { "F": { a: number, b: string, } };"#
+        "@tag(\"type\")\ntype simpleenum = | A({ value: string }) | B({ value: int }) | C | D({ value: (string, int) }) | E({ value: Foo }) | F({ value: { a: int, b: string, } })"
     );
     assert!(SimpleEnum::dependencies(&cfg)
         .into_iter()

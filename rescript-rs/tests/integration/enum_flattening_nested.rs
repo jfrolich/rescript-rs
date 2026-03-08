@@ -9,13 +9,15 @@ use rescript_rs::{Config, TS};
 #[rescript(export, export_to = "enum_flattening_nested/externally_tagged/")]
 struct FooExternally {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     baz: BarExternally,
 }
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[rescript(export, export_to = "enum_flattening_nested/externally_tagged/")]
+#[cfg_attr(feature = "serde-compat", serde(tag = "type"))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type"))]
 enum BarExternally {
     Baz { a: i32, a2: String },
     Biz { b: bool },
@@ -27,7 +29,7 @@ enum BarExternally {
 #[rescript(export, export_to = "enum_flattening_nested/externally_tagged/")]
 struct NestedExternally {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooExternally,
     u: u32,
 }
@@ -37,7 +39,7 @@ struct NestedExternally {
 #[rescript(export, export_to = "enum_flattening_nested/externally_tagged/")]
 struct NestedExternallyLonely {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooExternally,
 }
 
@@ -48,19 +50,17 @@ fn externally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         FooExternally::inline(&cfg),
-        r#"{ "Baz": { a: number, a2: string, } } | { "Biz": { b: boolean, } } | { "Buz": { c: string, d: number | null, } }"#
+        "| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, d: option<int>, })"
     );
 
-    // But when flattening, the parenthesis are needed due to type intesections
     assert_eq!(
         NestedExternally::inline(&cfg),
-        r#"{ u: number, } & ({ "Baz": { a: number, a2: string, } } | { "Biz": { b: boolean, } } | { "Buz": { c: string, d: number | null, } })"#
+        "{ u: int, } & (| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, d: option<int>, }))"
     );
 
-    // And here, they are, again, unecessary
     assert_eq!(
         NestedExternallyLonely::inline(&cfg),
-        r#"{ "Baz": { a: number, a2: string, } } | { "Biz": { b: boolean, } } | { "Buz": { c: string, d: number | null, } }"#
+        "| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, d: option<int>, })"
     );
 }
 
@@ -69,7 +69,7 @@ fn externally_tagged() {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 struct FooAdjecently {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     baz: BarAdjecently,
 }
 
@@ -77,7 +77,7 @@ struct FooAdjecently {
 #[rescript(export, export_to = "enum_flattening_nested/adjacently_tagged/")]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "stuff"))]
-#[cfg_attr(not(feature = "serde-compat"), ts(tag = "type", content = "stuff"))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "stuff"))]
 enum BarAdjecently {
     Baz {
         a: i32,
@@ -88,7 +88,7 @@ enum BarAdjecently {
     },
 
     #[cfg_attr(feature = "serde-compat", serde(untagged))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(untagged))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(untagged))]
     Buz {
         c: String,
         d: Option<i32>,
@@ -99,7 +99,7 @@ enum BarAdjecently {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 struct NestedAdjecently {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooAdjecently,
     u: u32,
 }
@@ -109,7 +109,7 @@ struct NestedAdjecently {
 #[rescript(export, export_to = "enum_flattening_nested/externally_tagged/")]
 struct NestedAdjecentlyLonely {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooAdjecently,
 }
 
@@ -118,17 +118,17 @@ fn adjacently_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         FooAdjecently::inline(&cfg),
-        r#"{ "type": "Baz", "stuff": { a: number, a2: string, } } | { "type": "Biz", "stuff": { b: boolean, } } | { c: string, d: number | null, }"#
+        "| Baz({ stuff: { a: int, a2: string, } }) | Biz({ stuff: { b: bool, } }) | Buz({ c: string, d: option<int>, })"
     );
 
     assert_eq!(
         NestedAdjecently::inline(&cfg),
-        r#"{ u: number, } & ({ "type": "Baz", "stuff": { a: number, a2: string, } } | { "type": "Biz", "stuff": { b: boolean, } } | { c: string, d: number | null, })"#
+        "{ u: int, } & (| Baz({ stuff: { a: int, a2: string, } }) | Biz({ stuff: { b: bool, } }) | Buz({ c: string, d: option<int>, }))"
     );
 
     assert_eq!(
         NestedAdjecentlyLonely::inline(&cfg),
-        r#"{ "type": "Baz", "stuff": { a: number, a2: string, } } | { "type": "Biz", "stuff": { b: boolean, } } | { c: string, d: number | null, }"#
+        "| Baz({ stuff: { a: int, a2: string, } }) | Biz({ stuff: { b: bool, } }) | Buz({ c: string, d: option<int>, })"
     );
 }
 
@@ -137,7 +137,7 @@ fn adjacently_tagged() {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 struct FooInternally {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     baz: BarInternally,
 }
 
@@ -145,7 +145,7 @@ struct FooInternally {
 #[rescript(export, export_to = "enum_flattening_nested/internally_tagged/")]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type"))]
-#[cfg_attr(not(feature = "serde-compat"), ts(tag = "type"))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type"))]
 enum BarInternally {
     Baz { a: i32, a2: String },
     Biz { b: bool },
@@ -156,7 +156,7 @@ enum BarInternally {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 struct NestedInternally {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooInternally,
     u: u32,
 }
@@ -166,7 +166,7 @@ struct NestedInternally {
 #[rescript(export, export_to = "enum_flattening_nested/externally_tagged/")]
 struct NestedInternallyLonely {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooInternally,
 }
 
@@ -175,17 +175,17 @@ fn internally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         FooInternally::inline(&cfg),
-        r#"{ "type": "Baz", a: number, a2: string, } | { "type": "Biz", b: boolean, } | { "type": "Buz", c: string, d: number | null, }"#
+        "| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, d: option<int>, })"
     );
 
     assert_eq!(
         NestedInternally::inline(&cfg),
-        r#"{ u: number, } & ({ "type": "Baz", a: number, a2: string, } | { "type": "Biz", b: boolean, } | { "type": "Buz", c: string, d: number | null, })"#
+        "{ u: int, } & (| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, d: option<int>, }))"
     );
 
     assert_eq!(
         NestedInternallyLonely::inline(&cfg),
-        r#"{ "type": "Baz", a: number, a2: string, } | { "type": "Biz", b: boolean, } | { "type": "Buz", c: string, d: number | null, }"#
+        "| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, d: option<int>, })"
     );
 }
 
@@ -194,7 +194,7 @@ fn internally_tagged() {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 struct FooUntagged {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     baz: BarUntagged,
 }
 
@@ -202,7 +202,7 @@ struct FooUntagged {
 #[rescript(export, export_to = "enum_flattening_nested/untagged/")]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(untagged))]
-#[cfg_attr(not(feature = "serde-compat"), ts(untagged))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(untagged))]
 enum BarUntagged {
     Baz { a: i32, a2: String },
     Biz { b: bool },
@@ -213,7 +213,7 @@ enum BarUntagged {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 struct NestedUntagged {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooUntagged,
     u: u32,
 }
@@ -223,7 +223,7 @@ struct NestedUntagged {
 #[rescript(export, export_to = "enum_flattening_nested/externally_tagged/")]
 struct NestedUntaggedLonely {
     #[cfg_attr(feature = "serde-compat", serde(flatten))]
-    #[cfg_attr(not(feature = "serde-compat"), ts(flatten))]
+    #[cfg_attr(not(feature = "serde-compat"), rescript(flatten))]
     a: FooUntagged,
 }
 
@@ -232,16 +232,16 @@ fn untagged() {
     let cfg = Config::from_env();
     assert_eq!(
         FooUntagged::inline(&cfg),
-        r#"{ a: number, a2: string, } | { b: boolean, } | { c: string, }"#
+        "| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, })"
     );
 
     assert_eq!(
         NestedUntagged::inline(&cfg),
-        r#"{ u: number, } & ({ a: number, a2: string, } | { b: boolean, } | { c: string, })"#
+        "{ u: int, } & (| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, }))"
     );
 
     assert_eq!(
         NestedUntaggedLonely::inline(&cfg),
-        r#"{ a: number, a2: string, } | { b: boolean, } | { c: string, }"#
+        "| Baz({ a: int, a2: string, }) | Biz({ b: bool, }) | Buz({ c: string, })"
     );
 }

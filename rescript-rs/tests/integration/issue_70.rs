@@ -2,11 +2,16 @@
 
 use std::collections::HashMap;
 
+#[cfg(feature = "serde-compat")]
+use serde::Serialize;
 use rescript_rs::{Config, TS};
 
 type TypeAlias = HashMap<String, String>;
 
 #[derive(TS)]
+#[cfg_attr(feature = "serde-compat", derive(Serialize))]
+#[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
 #[rescript(export, export_to = "issue_70/")]
 enum Enum {
     A(TypeAlias),
@@ -25,11 +30,11 @@ fn issue_70() {
     let cfg = Config::from_env();
     assert_eq!(
         Enum::decl(&cfg),
-        "type Enum = { \"A\": { [key in string]: string } } | { \"B\": { [key in string]: string } };"
+        "@tag(\"type\")\ntype enum = | A({ value: Dict.t<string> }) | B({ value: Dict.t<string> })"
     );
     assert_eq!(
         Struct::decl(&cfg),
-        "type Struct = { a: { [key in string]: string }, b: { [key in string]: string }, };"
+        "type struct = { a: Dict.t<string>, b: Dict.t<string>, }"
     );
 }
 
@@ -62,18 +67,18 @@ fn generic() {
     let cfg = Config::from_env();
     assert_eq!(
         Container::decl(&cfg),
-        "type Container = { \
-            a: GenericType<[Array<number>, string], Array<[Array<string>, number]>>, \
-            b: GenericType<[string, string], Array<[string, number]>>, \
-        };"
+        "type container = { \
+            a: GenericType<(array<int>, string), array<(array<string>, int)>>, \
+            b: GenericType<(string, string), array<(string, int)>>, \
+        }"
     );
 
     assert_eq!(
         GenericContainer::<(), ()>::decl(&cfg),
-        "type GenericContainer<A, B = number> = { \
-            a: GenericType<[string, string], Array<[string, number]>>, \
-            b: GenericType<[A, string], Array<[B, number]>>, \
-            c: GenericType<[A, string], Array<[GenericType<[A, string], Array<[B, number]>>, number]>>, \
-        };"
+        "type genericcontainer<A, B = int> = { \
+            a: GenericType<(string, string), array<(string, int)>>, \
+            b: GenericType<(A, string), array<(B, int)>>, \
+            c: GenericType<(A, string), array<(GenericType<(A, string), array<(B, int)>>, int)>>, \
+        }"
     );
 }

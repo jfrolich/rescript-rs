@@ -20,7 +20,7 @@ pub enum Iso4217CurrencyCode {
 
 #[rustfmt::skip]
 #[derive(Debug, rescript_rs::TS)]
-#[rescript(export, export_to = "very_big_types/")]
+#[rescript(export, export_to = "very_big_types/", tag = "type", content = "value")]
 pub enum VeryBigEnum {
     V001(String), V002(String), V003(String), V004(String), V005(String), V006(String), V007(String),
     V008(String), V009(String), V010(String), V011(String), V012(String), V013(String), V014(String),

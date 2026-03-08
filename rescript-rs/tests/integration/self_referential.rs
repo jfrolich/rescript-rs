@@ -32,7 +32,7 @@ fn named() {
     let cfg = Config::from_env();
     assert_eq!(
         T::decl(&cfg),
-        "type T = { \
+        "type t = { \
             t_box: T, \
             self_box: T, \
             t_ref: T, \
@@ -40,12 +40,12 @@ fn named() {
             t_arc: T, \
             self_arc: T, \
             has_t: { t: T, }, \
-         };"
+         }"
     );
 }
 
 #[derive(TS)]
-#[rescript(export, export_to = "self_referential/", rename = "E")]
+#[rescript(export, export_to = "self_referential/", rename = "E", tag = "type", content = "value")]
 enum ExternallyTagged {
     A(Box<ExternallyTagged>),
     B(&'static ExternallyTagged),
@@ -80,13 +80,15 @@ fn enum_externally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         ExternallyTagged::decl(&cfg),
-       "type E = { \"A\": E } | \
-                 { \"B\": E } | \
-                 { \"C\": E } | \
-                 { \"D\": E } | \
-                 { \"E\": [E, E, E, E] } | \
-                 { \"F\": { a: E, b: E, c: { [key in string]: E }, d: E | null, e?: E | null, f?: E, } } | \
-                 { \"G\": [Array<E>, Array<E>, { [key in string]: E }] };"
+        "@tag(\"type\")\n\
+         type e = \
+         | A({ value: E }) \
+         | B({ value: E }) \
+         | C({ value: E }) \
+         | D({ value: E }) \
+         | E({ value: (E, E, E, E) }) \
+         | F({ value: { a: E, b: E, c: Dict.t<E>, d: option<E>, e?: option<E>, f?: E, } }) \
+         | G({ value: (array<E>, array<E>, Dict.t<E>) })"
     );
 }
 
@@ -94,7 +96,7 @@ fn enum_externally_tagged() {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[rescript(rename = "I")]
 #[cfg_attr(feature = "serde-compat", serde(tag = "tag"))]
-#[cfg_attr(not(feature = "serde-compat"), ts(tag = "tag"))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "tag"))]
 enum InternallyTagged {
     A(Box<InternallyTagged>),
     B(&'static InternallyTagged),
@@ -120,12 +122,14 @@ fn enum_internally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         InternallyTagged::decl(&cfg),
-        "type I = { \"tag\": \"A\" } & I | \
-                  { \"tag\": \"B\" } & I | \
-                  { \"tag\": \"C\" } & I | \
-                  { \"tag\": \"D\" } & I | \
-                  { \"tag\": \"E\" } & Array<I> | \
-                  { \"tag\": \"F\", a: I, b: I, c: { [key in I]?: I }, d: I | null, e?: I | null, f?: I, };"
+        "@tag(\"tag\")\n\
+         type i = \
+         | A(I) \
+         | B(I) \
+         | C(I) \
+         | D(I) \
+         | E(array<I>) \
+         | F({ a: I, b: I, c: Dict.t<I>, d: option<I>, e?: option<I>, f?: I, })"
     );
 }
 
@@ -133,7 +137,7 @@ fn enum_internally_tagged() {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[rescript(export, export_to = "self_referential/", rename = "A")]
 #[cfg_attr(feature = "serde-compat", serde(tag = "tag", content = "content"))]
-#[cfg_attr(not(feature = "serde-compat"), ts(tag = "tag", content = "content"))]
+#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "tag", content = "content"))]
 enum AdjacentlyTagged {
     A(Box<AdjacentlyTagged>),
     B(&'static AdjacentlyTagged),
@@ -164,29 +168,14 @@ fn enum_adjacently_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         AdjacentlyTagged::decl(&cfg),
-        "type A = { \"tag\": \"A\", \"content\": A } | \
-                  { \"tag\": \"B\", \"content\": A } | \
-                  { \"tag\": \"C\", \"content\": A } | \
-                  { \"tag\": \"D\", \"content\": A } | \
-                  { \"tag\": \"E\", \"content\": Array<A> } | \
-                  { \
-                     \"tag\": \"F\", \
-                     \"content\": { \
-                         a: A, \
-                         b: A, \
-                         c: { [key in string]: A }, \
-                         d: A | null, \
-                         e?: A | null, \
-                         f?: A, \
-                     } \
-                  } | \
-                  { \
-                     \"tag\": \"G\", \
-                     \"content\": [\
-                        Array<A>, \
-                        [A, A, A, A], \
-                        { [key in string]: A }\
-                     ] \
-                  };"
+        "@tag(\"tag\")\n\
+         type a = \
+         | A({ content: A }) \
+         | B({ content: A }) \
+         | C({ content: A }) \
+         | D({ content: A }) \
+         | E({ content: array<A> }) \
+         | F({ content: { a: A, b: A, c: Dict.t<A>, d: option<A>, e?: option<A>, f?: A, } }) \
+         | G({ content: (array<A>, (A, A, A, A), Dict.t<A>) })"
     );
 }

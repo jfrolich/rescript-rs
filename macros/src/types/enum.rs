@@ -204,7 +204,7 @@ fn format_variant(
                     }}
                 } else {
                     let ty = match field_attr.type_override {
-                        Some(type_override) => quote!(#type_override),
+                        Some(type_override) => quote!(#type_override.to_owned()),
                         None => {
                             let ty = field_attr.type_as(&field.ty);
                             quote!(<#ty as #crate_rename::TS>::name(cfg))
@@ -271,7 +271,7 @@ fn format_variant(
                         }}
                     } else {
                         let ty = match field_attr.type_override {
-                            Some(type_override) => quote! { #type_override },
+                            Some(type_override) => quote! { #type_override.to_owned() },
                             None => {
                                 let ty = field_attr.type_as(&field.ty);
                                 quote!(<#ty as #crate_rename::TS>::name(cfg))

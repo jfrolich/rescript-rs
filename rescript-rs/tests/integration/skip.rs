@@ -21,11 +21,13 @@ struct Skip {
 #[test]
 fn simple() {
     let cfg = Config::from_env();
-    assert_eq!(Skip::inline(&cfg), "{ a: number, b: number, }");
+    assert_eq!(Skip::inline(&cfg), "{ a: int, b: int, }");
 }
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
+#[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
+#[cfg_attr(not(feature = "serde-compat"), ts(tag = "type", content = "value"))]
 #[rescript(export, export_to = "skip/")]
 enum Externally {
     A(
@@ -58,7 +60,7 @@ fn externally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         Externally::decl(&cfg),
-        r#"type Externally = "A" | { "B": [number] } | { "C": {  } } | { "D": { y: number, } };"#
+        "@tag(\"type\")\ntype externally = | A | B({ value: (int) }) | C({ value: {  } }) | D({ value: { y: int, } })"
     );
 }
 
@@ -91,7 +93,7 @@ fn internally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         Internally::decl(&cfg),
-        r#"type Internally = { "t": "A" } | { "t": "B", } | { "t": "C", y: number, };"#
+        "@tag(\"t\")\ntype internally = | A | B({  }) | C({ y: int, })"
     );
 }
 
@@ -131,6 +133,6 @@ fn adjacently_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         Adjacently::decl(&cfg),
-        r#"type Adjacently = { "t": "A" } | { "t": "B", "c": [number] } | { "t": "C", "c": {  } } | { "t": "D", "c": { y: number, } };"#
+        "@tag(\"t\")\ntype adjacently = | A | B({ c: (int) }) | C({ c: {  } }) | D({ c: { y: int, } })"
     );
 }

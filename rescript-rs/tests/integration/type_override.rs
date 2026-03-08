@@ -28,7 +28,7 @@ fn simple() {
     let cfg = Config::from_env();
     assert_eq!(
         Override::inline(&cfg),
-        "{ a: number, b: 0 | 1 | 2, x: string, y: string, z: string | null, }"
+        "{ a: int, b: 0 | 1 | 2, x: string, y: string, z: string | null, }"
     )
 }
 
@@ -72,6 +72,6 @@ enum Adjacent {
 fn enum_newtype_representations() {
     // regression test for https://github.com/Aleph-Alpha/ts-rs/issues/126
     let cfg = Config::from_env();
-    assert_eq!(Internal::inline(&cfg), r#"{ "t": "Newtype" } & unknown"#);
-    assert_eq!(Adjacent::inline(&cfg), r#"{ "t": "Newtype", "c": unknown }"#);
+    assert_eq!(Internal::inline(&cfg), r#"| Newtype(unknown)"#);
+    assert_eq!(Adjacent::inline(&cfg), r#"| Newtype({ c: unknown })"#);
 }
