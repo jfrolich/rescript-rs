@@ -254,29 +254,7 @@ impl DerivedTS {
         });
 
         let inline = match self.ts_enum {
-            Some(Repr::Int) => quote! {
-                compile_error!("rescript-rs does not support repr(enum) with integer discriminants. ReScript has no equivalent of TypeScript numeric enums.");
-                unreachable!()
-            },
-            Some(Repr::Name) => quote! {
-                let variants = #inline;
-                let mut variants = variants
-                    .split(',')
-                    .map(|x| x.split_once(" = ").unwrap().1.to_string())
-                    .peekable();
-
-                if variants.peek().is_none() {
-                    return "never".into()
-                }
-
-                let mut buffer = String::new();
-                for variant in variants {
-                    buffer.push_str(&variant);
-                    buffer.push_str(" | ");
-                }
-
-                buffer.trim_end_matches(['|', ' ']).into()
-            },
+            Some(Repr::Int) | Some(Repr::Name) => quote!(#inline),
             None => quote!(#inline),
         };
 

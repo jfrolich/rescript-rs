@@ -46,10 +46,7 @@ pub(crate) fn r#enum_def(s: &ItemEnum) -> syn::Result<DerivedTS> {
         )?;
     }
 
-    let separator = match enum_attr.repr {
-        Some(_) => ", ",
-        None => " ",
-    };
+    let separator = " ";
 
     let tag_annotation = match enum_attr.tagged()? {
         Tagged::Internally { tag } | Tagged::Adjacently { tag, .. } => Some(tag.to_string()),
@@ -111,10 +108,20 @@ fn format_variant(
     if let Some(ref repr) = enum_attr.repr {
         let formatted = match (repr, &variant.discriminant) {
             (Repr::Int, Some((_, value))) => {
-                quote!(format!("\"{}\" = {}", #ts_name, #value))
+                quote!(format!("| @as({}) {}", #value, #rust_variant_name))
             }
-            (Repr::Int, None) => quote!(format!("\"{}\"", #ts_name)),
-            (Repr::Name, _) => quote!(format!("\"{}\" = \"{}\"", #ts_name, #ts_name)),
+            (Repr::Int, None) => quote!(format!("| {}", #rust_variant_name)),
+            (Repr::Name, _) => {
+                quote! {{
+                    let serde_name: String = (#ts_name).to_string();
+                    let rust_name = #rust_variant_name;
+                    if serde_name == rust_name {
+                        format!("| {}", rust_name)
+                    } else {
+                        format!("| @as(\"{}\") {}", serde_name, rust_name)
+                    }
+                }}
+            }
         };
 
         formatted_variants.push(formatted);
