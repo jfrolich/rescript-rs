@@ -1,12 +1,10 @@
 [package]
-name = "ts-rs-macros"
-version = "12.0.1"
-authors = ["Moritz Bischof <moritz.bischof1@gmail.com>"]
+name = "rescript-rs-macros"
+version = "0.1.0"
+authors = ["Tella"]
 edition = "2021"
-description = "derive macro for ts-rs"
+description = "derive macro for rescript-rs"
 license = "MIT"
-homepage = "https://github.com/Aleph-Alpha/ts-rs"
-repository = "https://github.com/Aleph-Alpha/ts-rs"
 
 [features]
 serde-compat = ["termcolor"]

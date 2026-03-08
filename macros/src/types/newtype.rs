@@ -56,5 +56,6 @@ pub(crate) fn newtype(
         } else {
             quote!(false)
         },
+        tag_annotation: None,
     })
 }

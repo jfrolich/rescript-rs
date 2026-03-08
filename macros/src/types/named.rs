@@ -17,11 +17,8 @@ pub(crate) fn named(attr: &StructAttr, ts_name: Expr, fields: &FieldsNamed) -> R
     let mut flattened_fields = Vec::new();
     let mut dependencies = Dependencies::new(crate_rename.clone());
 
-    if let Some(tag) = &attr.tag {
-        formatted_fields.push(quote! {
-            format!("\"{}\": \"{}\",", #tag, #ts_name)
-        });
-    }
+    // In ReScript, the tag field is handled by @tag at the type level,
+    // so we don't inject it as a record field.
 
     for field in &fields.named {
         format_field(
@@ -74,6 +71,7 @@ pub(crate) fn named(attr: &StructAttr, ts_name: Expr, fields: &FieldsNamed) -> R
         bound: attr.bound.clone(),
         ts_enum: None,
         is_enum: quote!(false),
+        tag_annotation: None,
     })
 }
 

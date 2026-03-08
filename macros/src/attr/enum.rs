@@ -76,7 +76,7 @@ impl EnumAttr {
     pub fn crate_rename(&self) -> Path {
         self.crate_rename
             .clone()
-            .unwrap_or_else(|| parse_quote!(::ts_rs))
+            .unwrap_or_else(|| parse_quote!(::rescript_rs))
     }
 }
 
@@ -223,7 +223,7 @@ impl Attr for EnumAttr {
 
             for variant in item.variants.iter() {
                 if !matches!(variant.fields, Fields::Unit) {
-                    syn_err_spanned!(variant; "All variants of an enum marked as `#[ts(repr(enum))]` must be unit variants");
+                    syn_err_spanned!(variant; "All variants of an enum marked as `#[rescript(repr(enum))]` must be unit variants");
                 }
             }
 
@@ -256,7 +256,7 @@ impl ContainerAttr for EnumAttr {
     fn crate_rename(&self) -> Path {
         self.crate_rename
             .clone()
-            .unwrap_or_else(|| parse_quote!(::ts_rs))
+            .unwrap_or_else(|| parse_quote!(::rescript_rs))
     }
 }
 

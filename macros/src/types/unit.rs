@@ -12,7 +12,7 @@ pub(crate) fn empty_object(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
 
     DerivedTS {
         crate_rename: crate_rename.clone(),
-        inline: quote!("Record<symbol, never>".to_owned()),
+        inline: quote!("{  }".to_owned()),
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),
@@ -23,6 +23,7 @@ pub(crate) fn empty_object(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
         bound: attr.bound.clone(),
         ts_enum: None,
         is_enum: quote!(false),
+        tag_annotation: None,
     }
 }
 
@@ -31,7 +32,7 @@ pub(crate) fn empty_array(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
 
     DerivedTS {
         crate_rename: crate_rename.clone(),
-        inline: quote!("never[]".to_owned()),
+        inline: quote!("array<never>".to_owned()),
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),
@@ -42,6 +43,7 @@ pub(crate) fn empty_array(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
         bound: attr.bound.clone(),
         ts_enum: None,
         is_enum: quote!(false),
+        tag_annotation: None,
     }
 }
 
@@ -50,7 +52,7 @@ pub(crate) fn null(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
 
     DerivedTS {
         crate_rename: crate_rename.clone(),
-        inline: quote!("null".to_owned()),
+        inline: quote!("unit".to_owned()),
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),
@@ -61,5 +63,6 @@ pub(crate) fn null(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
         bound: attr.bound.clone(),
         ts_enum: None,
         is_enum: quote!(false),
+        tag_annotation: None,
     }
 }

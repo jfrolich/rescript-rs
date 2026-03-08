@@ -31,6 +31,8 @@ struct DerivedTS {
     bound: Option<Vec<WherePredicate>>,
     ts_enum: Option<Repr>,
     is_enum: TokenStream,
+    /// Optional `@tag("...")` annotation for ReScript tagged variants
+    tag_annotation: Option<String>,
 
     export: bool,
     export_to: Option<Expr>,
@@ -50,13 +52,13 @@ impl DerivedTS {
                     let dir_or_file = format!("{}", #dir_or_file);
                     if dir_or_file.ends_with('/') {
                         // export into directory
-                        format!("{dir_or_file}{}.ts", #ts_name)
+                        format!("{dir_or_file}{}.res", #ts_name)
                     } else {
                         // export into provided file
                         format!("{dir_or_file}")
                     }
                 }],
-                None => quote![format!("{}.ts", #ts_name)],
+                None => quote![format!("{}.res", #ts_name)],
             };
 
             quote! {
@@ -152,10 +154,10 @@ impl DerivedTS {
     /// has two generic type parameters, `A` and `B`. This function will therefore generate
     /// ```compile_fail
     /// struct A;
-    /// impl ts_rs::TS for A { /* .. */ }
+    /// impl rescript_rs::TS for A { /* .. */ }
     ///
     /// struct B;
-    /// impl ts_rs::TS for B { /* .. */ }
+    /// impl rescript_rs::TS for B { /* .. */ }
     /// ```
     fn generate_generic_types(&self, generics: &Generics) -> TokenStream {
         let crate_rename = &self.crate_rename;
@@ -253,27 +255,8 @@ impl DerivedTS {
 
         let inline = match self.ts_enum {
             Some(Repr::Int) => quote! {
-                let variants = #inline.replace(|x: char| !x.is_numeric() && x != ',', "");
-                let mut variants = variants
-                    .split(',')
-                    .map(|x| x.parse().ok())
-                    .peekable();
-
-                if variants.peek().is_none() {
-                    return "never".into()
-                }
-
-                let mut buffer = String::new();
-                let mut latest = None::<isize>;
-
-                for variant in variants {
-                    let value = variant.or(latest.map(|x| x + 1)).unwrap_or(0);
-                    buffer.push_str(&format!("{} | ", value));
-
-                    latest = Some(value)
-                }
-
-                buffer.trim_end_matches(['|', ' ']).into()
+                compile_error!("rescript-rs does not support repr(enum) with integer discriminants. ReScript has no equivalent of TypeScript numeric enums.");
+                unreachable!()
             },
             Some(Repr::Name) => quote! {
                 let variants = #inline;
@@ -316,15 +299,23 @@ impl DerivedTS {
         let crate_rename = &self.crate_rename;
         let name = &self.ts_name;
 
+        let tag_prefix = match &self.tag_annotation {
+            Some(tag) => {
+                let annotation = format!("@tag(\"{}\")\n", tag);
+                quote!(#annotation)
+            }
+            None => quote!(""),
+        };
+
         if self.ts_enum.is_some() {
             let inline = &self.inline;
             return quote! {
                 fn decl_concrete(cfg: &#crate_rename::Config) -> String {
-                    format!("enum {} {{ {} }}", #name, #inline)
+                    format!("{}type {} = {}", #tag_prefix, (#name).to_lowercase(), #inline)
                 }
 
                 fn decl(cfg: &#crate_rename::Config) -> String {
-                    format!("enum {} {{ {} }}", #name, #inline)
+                    format!("{}type {} = {}", #tag_prefix, (#name).to_lowercase(), #inline)
                 }
             };
         }
@@ -342,26 +333,20 @@ impl DerivedTS {
         let generic_idents = generics.params.iter().filter_map(|p| match p {
             G::Lifetime(_) => None,
             G::Type(TypeParam { ident, .. }) => match self.concrete.get(ident) {
-                // Since we named our dummy types the same as the generic parameters, we can just keep
-                // the identifier of the generic parameter - its name is shadowed by the dummy struct.
                 None => Some(quote!(#ident)),
-                // If the type parameter is concrete, we use the type the user provided using
-                // `#[ts(concrete)]`
                 Some(concrete) => Some(quote!(#concrete)),
             },
-            // We keep const parameters as they are, since there's no sensible default value we can
-            // use instead. This might be something to change in the future.
             G::Const(ConstParam { ident, .. }) => Some(quote!(#ident)),
         });
         quote! {
             fn decl_concrete(cfg: &#crate_rename::Config) -> String {
-                format!("type {} = {};", #name, <Self as #crate_rename::TS>::inline(cfg))
+                format!("{}type {} = {}", #tag_prefix, (#name).to_lowercase(), <Self as #crate_rename::TS>::inline(cfg))
             }
             fn decl(cfg: &#crate_rename::Config) -> String {
                 #generic_types
                 let inline = <#rust_ty<#(#generic_idents,)*> as #crate_rename::TS>::inline(cfg);
                 let generics = #ts_generics;
-                format!("type {}{generics} = {inline};", #name)
+                format!("{}type {}{generics} = {inline}", #tag_prefix, (#name).to_lowercase())
             }
         }
     }
@@ -505,8 +490,8 @@ fn used_type_params<'ty, 'out>(
 
 /// Derives [TS](./trait.TS.html) for a struct or enum.
 /// Please take a look at [TS](./trait.TS.html) for documentation.
-#[proc_macro_derive(TS, attributes(ts))]
-pub fn typescript(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_derive(ReScript, attributes(rescript))]
+pub fn rescript(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     match entry(input) {
         Err(err) => err.to_compile_error(),
         Ok(result) => result,

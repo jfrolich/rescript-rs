@@ -6,16 +6,16 @@ use syn::{
 
 use crate::attr::FieldAttr;
 
-/// Indicates whether the field is marked with `#[ts(optional)]`.
-/// `#[ts(optional)]` turns an `t: Option<T>` into `t?: T`, while
-/// `#[ts(optional = nullable)]` turns it into `t?: T | null`.
+/// Indicates whether the field is marked with `#[rescript(optional)]`.
+/// `#[rescript(optional)]` turns an `t: Option<T>` into `t?: T`, while
+/// `#[rescript(optional = nullable)]` turns it into `t?: T | null`.
 #[derive(Default, Clone, Copy)]
 pub enum Optional {
-    /// Explicitly marked as optional with `#[ts(optional)]`
+    /// Explicitly marked as optional with `#[rescript(optional)]`
     #[allow(clippy::enum_variant_names)]
     Optional { nullable: bool },
 
-    /// Explicitly marked as not optional with `#[ts(optional = false)]`
+    /// Explicitly marked as not optional with `#[rescript(optional = false)]`
     #[allow(clippy::enum_variant_names)]
     NotOptional,
 
@@ -58,10 +58,10 @@ pub fn parse_optional(input: ParseStream) -> syn::Result<Optional> {
 /// An expression evaluating to bool, indicating whether the field should be annotated with `?`.
 ///
 /// `type`:  
-/// The transformed type of the field after applying the `#[ts(optional)]` annotation.
+/// The transformed type of the field after applying the `#[rescript(optional)]` annotation.
 /// This will be either  
-/// - the unmodified type of the field (no optional or `#[ts(optional = nullable)]`) or  
-/// - if the field is an `Option<T>`, its inner type `T´ (`#[ts(optional)]`)
+/// - the unmodified type of the field (no optional or `#[rescript(optional = nullable)]`) or  
+/// - if the field is an `Option<T>`, its inner type `T´ (`#[rescript(optional)]`)
 pub fn apply(
     crate_rename: &Path,
     for_struct: Optional,
@@ -70,11 +70,11 @@ pub fn apply(
     span: Span,
 ) -> (Expr, Type) {
     match (for_struct, attr.optional) {
-        // explicit `#[ts(optional = false)]` on field, or inherited from struct.
+        // explicit `#[rescript(optional = false)]` on field, or inherited from struct.
         (Optional::NotOptional, Optional::Inherit) | (_, Optional::NotOptional) => {
             (parse_quote!(false), field_ty.clone())
         }
-        // explicit `#[ts(optional)]` on field.
+        // explicit `#[rescript(optional)]` on field.
         // It takes precedence over the struct attribute, and is enforced **AT COMPILE TIME**
         (_, Optional::Optional { nullable }) => (
             parse_quote!(true),
@@ -88,8 +88,8 @@ pub fn apply(
                 }
             },
         ),
-        // Inherited `#[ts(optional)]` from the struct.
-        // Acts like `#[ts(optional)]` on a field, but does not error on non-`Option` fields.
+        // Inherited `#[rescript(optional)]` from the struct.
+        // Acts like `#[rescript(optional)]` on a field, but does not error on non-`Option` fields.
         // Instead, it is a no-op.
         (Optional::Optional { nullable }, Optional::Inherit) if attr.type_override.is_none() => (
             parse_quote! {
@@ -101,10 +101,10 @@ pub fn apply(
                 unwrap_option(crate_rename, field_ty)
             },
         ),
-        // no applicable `#[ts(optional)]` attributes
+        // no applicable `#[rescript(optional)]` attributes
         _ => {
             // field may be omitted during serialization and has a default value, so the field can be
-            // treated as `#[ts(optional = nullable)]`.
+            // treated as `#[rescript(optional = nullable)]`.
             let is_optional = attr.maybe_omitted && attr.has_default;
             (parse_quote!(#is_optional), field_ty.clone())
         }

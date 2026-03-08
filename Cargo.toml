@@ -1,4 +1,4 @@
 [workspace]
-members = ["macros", "ts-rs", "example"]
+members = ["macros", "rescript-rs", "example"]
 resolver = "2"
 

@@ -87,7 +87,7 @@ impl Attr for FieldAttr {
         {
             syn_err_spanned!(
                 field;
-                r#"using `#[serde(with = "...")]` requires the use of `#[ts(as = "...")]` or `#[ts(type = "...")]`"#
+                r#"using `#[serde(with = "...")]` requires the use of `#[rescript(as = "...")]` or `#[rescript(type = "...")]`"#
             )
         }
 

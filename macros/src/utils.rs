@@ -81,7 +81,7 @@ macro_rules! impl_parse {
                                 crate::utils::warning::print_warning(
                                     "failed to parse serde attribute",
                                     format!("{x} {tokens}"),
-                                    "ts-rs failed to parse this attribute. It will be ignored.",
+                                    "rescript-rs failed to parse this attribute. It will be ignored.",
                                 )
                                 .unwrap();
                             } else {
@@ -136,14 +136,14 @@ pub fn raw_name_to_ts_field(value: String) -> String {
     }
 }
 
-/// Parse all `#[ts(..)]` attributes from the given slice.
+/// Parse all `#[rescript(..)]` attributes from the given slice.
 pub(crate) fn parse_attrs<'a, A>(attrs: &'a [Attribute]) -> Result<A>
 where
     A: TryFrom<&'a Attribute, Error = Error> + Attr,
 {
     Ok(attrs
         .iter()
-        .filter(|a| a.path().is_ident("ts"))
+        .filter(|a| a.path().is_ident("rescript"))
         .map(A::try_from)
         .collect::<Result<Vec<A>>>()?
         .into_iter()
