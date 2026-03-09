@@ -14,7 +14,7 @@ A clear and concise description of what the bug is.
 Steps to reproduce the behavior:
 1. Go to '...'
 2. Create the following type '....'
-3. Derive/implement `TS`
+3. Derive/implement `ReScript`
 4. See error
 
 **Expected behavior**

@@ -20,11 +20,11 @@
 //! ## Get started
 //! ```toml
 //! [dependencies]
-//! rescript-rs = "0.1"
+//! rescript-rs = { git = "https://github.com/jfrolich/rescript-rs.git" }
 //! ```
 //!
 //! ```rust
-//! #[derive(rescript_rs::TS)]
+//! #[derive(rescript_rs::ReScript)]
 //! #[rescript(export)]
 //! struct User {
 //!     user_id: i32,
@@ -624,7 +624,6 @@ impl Config {
     pub fn out_dir(&self) -> &Path {
         &self.export_dir
     }
-
 
     /// Sets the maximum size of arrays (`[T; N]`) up to which they are treated as ReScript tuples.
     /// Arrays beyond this size will instead result in a ReScript array (`array<t>`).
