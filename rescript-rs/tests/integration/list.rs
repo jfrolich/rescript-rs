@@ -10,5 +10,8 @@ struct List {
 #[test]
 fn list() {
     let cfg = Config::from_env();
-    assert_eq!(List::decl(&cfg), "type list = { data: option<array<int>>, }");
+    assert_eq!(
+        List::decl(&cfg),
+        "type list = {\n  data: option<array<int>>,\n}"
+    );
 }

@@ -42,6 +42,7 @@ pub(crate) fn newtype(
     Ok(DerivedTS {
         crate_rename: crate_rename.clone(),
         inline: inline_def,
+        decl_inline: None,
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies,

@@ -1,8 +1,8 @@
 #![allow(dead_code, clippy::disallowed_names)]
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
@@ -43,11 +43,11 @@ fn test_enums_with_internal_tags() {
     let cfg = Config::from_env();
     assert_eq!(
         EnumWithInternalTag::decl(&cfg),
-        "@tag(\"type\")\ntype enumwithinternaltag = | A({ foo: string, }) | B({ bar: int, })"
+        "@tag(\"type\")\ntype enumWithInternalTag = \n  | A({ foo: string, })\n  | B({ bar: int, })"
     );
 
     assert_eq!(
         EnumWithInternalTag2::decl(&cfg),
-        "@tag(\"type\")\ntype enumwithinternaltag2 = | A(InnerA) | B(InnerB)"
+        "@tag(\"type\")\ntype enumWithInternalTag2 = \n  | A(innerA)\n  | B(innerB)"
     );
 }

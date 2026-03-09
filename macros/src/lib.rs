@@ -25,6 +25,9 @@ struct DerivedTS {
     ts_name: Expr,
     docs: Vec<Expr>,
     inline: TokenStream,
+    /// Multi-line version of `inline` for use in top-level declarations.
+    /// When set, `decl()` uses this instead of `inline`.
+    decl_inline: Option<TokenStream>,
     inline_flattened: Option<TokenStream>,
     dependencies: Dependencies,
     concrete: HashMap<Ident, Type>,
@@ -139,10 +142,10 @@ impl DerivedTS {
 
         if generics_ts_names.peek().is_some() {
             quote! {
-                format!("{}<{}>", #name, vec![#(#generics_ts_names),*].join(", "))
+                format!("{}<{}>", #crate_rename::to_camel_case(&(#name)), vec![#(#generics_ts_names),*].join(", "))
             }
         } else {
-            quote!((#name).to_string())
+            quote!(#crate_rename::to_camel_case(&(#name)))
         }
     }
 
@@ -289,11 +292,11 @@ impl DerivedTS {
             let inline = &self.inline;
             return quote! {
                 fn decl_concrete(cfg: &#crate_rename::Config) -> String {
-                    format!("{}type {} = {}", #tag_prefix, (#name).to_lowercase(), #inline)
+                    format!("{}type {} = {}", #tag_prefix, #crate_rename::to_camel_case(&(#name)), #inline)
                 }
 
                 fn decl(cfg: &#crate_rename::Config) -> String {
-                    format!("{}type {} = {}", #tag_prefix, (#name).to_lowercase(), #inline)
+                    format!("{}type {} = {}", #tag_prefix, #crate_rename::to_camel_case(&(#name)), #inline)
                 }
             };
         }
@@ -316,15 +319,26 @@ impl DerivedTS {
             },
             G::Const(ConstParam { ident, .. }) => Some(quote!(#ident)),
         });
+
+        let decl_body = match &self.decl_inline {
+            Some(expanded) => quote!(#expanded),
+            None => quote!(<Self as #crate_rename::TS>::inline(cfg)),
+        };
+
+        let decl_body_generic = match &self.decl_inline {
+            Some(expanded) => quote!(#expanded),
+            None => quote!(<#rust_ty<#(#generic_idents,)*> as #crate_rename::TS>::inline(cfg)),
+        };
+
         quote! {
             fn decl_concrete(cfg: &#crate_rename::Config) -> String {
-                format!("{}type {} = {}", #tag_prefix, (#name).to_lowercase(), <Self as #crate_rename::TS>::inline(cfg))
+                format!("{}type {} = {}", #tag_prefix, #crate_rename::to_camel_case(&(#name)), #decl_body)
             }
             fn decl(cfg: &#crate_rename::Config) -> String {
                 #generic_types
-                let inline = <#rust_ty<#(#generic_idents,)*> as #crate_rename::TS>::inline(cfg);
+                let inline = #decl_body_generic;
                 let generics = #ts_generics;
-                format!("{}type {}{generics} = {inline}", #tag_prefix, (#name).to_lowercase())
+                format!("{}type {}{generics} = {inline}", #tag_prefix, #crate_rename::to_camel_case(&(#name)))
             }
         }
     }

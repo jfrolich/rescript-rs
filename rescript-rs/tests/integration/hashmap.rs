@@ -16,7 +16,7 @@ fn hashmap() {
     let cfg = Config::from_env();
     assert_eq!(
         Hashes::decl(&cfg),
-        "type hashes = { map: Dict.t<string>, set: array<string>, }"
+        "type hashes = {\n  map: Dict.t<string>,\n  set: array<string>,\n}"
     )
 }
 
@@ -37,7 +37,7 @@ fn hashmap_with_custom_hasher() {
     let cfg = Config::from_env();
     assert_eq!(
         HashesHasher::decl(&cfg),
-        "type hasheshasher = { map: Dict.t<string>, set: array<string>, }"
+        "type hashesHasher = {\n  map: Dict.t<string>,\n  set: array<string>,\n}"
     )
 }
 
@@ -77,14 +77,8 @@ fn with_custom_types() {
     );
     assert_eq!(
         HashMapWithCustomTypes::decl(&cfg),
-        "type hashmapwithcustomtypes = { map: Dict.t<CustomValue>, }"
+        "type hashMapWithCustomTypes = {\n  map: Dict.t<customValue>,\n}"
     );
-    assert_eq!(
-        HashMap::<EnumKey, String>::name(&cfg),
-        "Dict.t<string>"
-    );
-    assert_eq!(
-        HashMap::<EnumKey, String>::inline(&cfg),
-        "Dict.t<string>"
-    );
+    assert_eq!(HashMap::<EnumKey, String>::name(&cfg), "Dict.t<string>");
+    assert_eq!(HashMap::<EnumKey, String>::inline(&cfg), "Dict.t<string>");
 }

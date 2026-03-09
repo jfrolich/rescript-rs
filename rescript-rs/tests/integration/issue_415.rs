@@ -14,7 +14,7 @@ struct Issue415 {
 #[test]
 fn issue_415() {
     let cfg = Config::from_env();
-    assert_eq!(Issue415::decl(&cfg), "type issue415 = { a?: Date, }");
+    assert_eq!(Issue415::decl(&cfg), "type issue415 = {\n  a?: Date,\n}");
 }
 
 #[derive(TS)]
@@ -24,5 +24,5 @@ struct InTuple(i32, #[rescript(optional, type = "Date")] Option<Foreign>);
 #[test]
 fn in_tuple() {
     let cfg = Config::from_env();
-    assert_eq!(InTuple::decl(&cfg), "type intuple = (int, (Date)?)");
+    assert_eq!(InTuple::decl(&cfg), "type inTuple = (int, (Date)?)");
 }

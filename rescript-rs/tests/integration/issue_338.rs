@@ -34,6 +34,6 @@ fn test() {
     let cfg = Config::from_env();
     assert_eq!(
         MyType::inline(&cfg),
-        "{ my_field_0: bool, my_field_1: Dict.t<MyStruct>, }"
+        "{ my_field_0: bool, my_field_1: Dict.t<myStruct>, }"
     );
 }

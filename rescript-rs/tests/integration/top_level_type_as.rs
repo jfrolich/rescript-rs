@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-json-impl")]
 use serde_json::Value as JsonValue;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[rescript(as = "T")]

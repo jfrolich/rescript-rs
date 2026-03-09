@@ -31,6 +31,7 @@ pub(crate) fn tuple(attr: &StructAttr, ts_name: Expr, fields: &FieldsUnnamed) ->
                 [#(#formatted_fields),*].join(", ")
             )
         },
+        decl_inline: None,
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies,

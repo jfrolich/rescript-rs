@@ -43,16 +43,16 @@ mod issue_261 {
         let cfg = Config::from_env();
         assert_eq!(
             Consumer1::<TsDriver>::decl(&cfg),
-            "type consumer1 = { info: string, }"
+            "type consumer1 = {\n  info: string,\n}"
         );
         assert_eq!(
-            Consumer1::<TsDriver>::decl(&cfg),
-            Consumer1::<OtherDriver>::decl(&cfg)
+            Consumer1::<OtherDriver>::decl(&cfg),
+            "type consumer1 = {\n  info: otherInfo,\n}"
         );
 
         assert_eq!(
             Consumer2::<OtherDriver>::decl_concrete(&cfg),
-            "type consumer2 = { info: OtherInfo, driver: OtherDriver, }"
+            "type consumer2 = {\n  info: otherInfo,\n  driver: otherDriver,\n}"
         );
     }
 }
@@ -83,10 +83,10 @@ mod simple {
     #[test]
     fn simple() {
         let cfg = Config::from_env();
-        assert_eq!(Simple::<String>::decl(&cfg), "type simple = { t: int, }");
+        assert_eq!(Simple::<String>::decl(&cfg), "type simple = {\n  t: string,\n}");
         assert_eq!(
             WithOption::<String>::decl(&cfg),
-            "type withoption = { opt: option<int>, }"
+            "type withOption = {\n  opt: option<string>,\n}"
         );
     }
 }

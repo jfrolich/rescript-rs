@@ -1,7 +1,7 @@
 #![cfg(feature = "tokio-impl")]
 
-use tokio::sync::{Mutex, OnceCell, RwLock};
 use rescript_rs::{Config, TS};
+use tokio::sync::{Mutex, OnceCell, RwLock};
 
 #[derive(TS)]
 #[rescript(export, export_to = "tokio/")]

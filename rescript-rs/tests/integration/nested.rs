@@ -32,6 +32,6 @@ fn test_nested() {
     let cfg = Config::from_env();
     assert_eq!(
         C::inline(&cfg),
-        "{ b1: B, b2: { a1: A, a2: { x1: int, y1: int, }, }, }"
+        "{ b1: b, b2: { a1: a, a2: { x1: int, y1: int, }, }, }"
     );
 }

@@ -25,6 +25,6 @@ fn test_simple_enum() {
     let cfg = Config::from_env();
     assert_eq!(
         SimpleEnum::decl(&cfg),
-        "type simpleenum = | @as(\"asdf\") A | B | C | D"
+        "type simpleEnum = \n  | @as(\"asdf\") A\n  | B\n  | C\n  | D"
     )
 }

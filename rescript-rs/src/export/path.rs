@@ -24,4 +24,3 @@ pub fn absolute<T: AsRef<Path>>(path: T) -> Result<PathBuf, E> {
         PathBuf::from(".")
     })
 }
-

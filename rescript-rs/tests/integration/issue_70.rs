@@ -2,16 +2,19 @@
 
 use std::collections::HashMap;
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 type TypeAlias = HashMap<String, String>;
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "value")
+)]
 #[rescript(export, export_to = "issue_70/")]
 enum Enum {
     A(TypeAlias),
@@ -30,11 +33,11 @@ fn issue_70() {
     let cfg = Config::from_env();
     assert_eq!(
         Enum::decl(&cfg),
-        "@tag(\"type\")\ntype enum = | A({ value: Dict.t<string> }) | B({ value: Dict.t<string> })"
+        "@tag(\"type\")\ntype enum = \n  | A({ value: Dict.t<string> })\n  | B({ value: Dict.t<string> })"
     );
     assert_eq!(
         Struct::decl(&cfg),
-        "type struct = { a: Dict.t<string>, b: Dict.t<string>, }"
+        "type struct = {\n  a: Dict.t<string>,\n  b: Dict.t<string>,\n}"
     );
 }
 
@@ -67,18 +70,18 @@ fn generic() {
     let cfg = Config::from_env();
     assert_eq!(
         Container::decl(&cfg),
-        "type container = { \
-            a: GenericType<(array<int>, string), array<(array<string>, int)>>, \
-            b: GenericType<(string, string), array<(string, int)>>, \
+        "type container = {\n  \
+            a: genericType<(array<int>, string), array<(array<string>, int)>>,\n  \
+            b: genericType<(string, string), array<(string, int)>>,\n\
         }"
     );
 
     assert_eq!(
         GenericContainer::<(), ()>::decl(&cfg),
-        "type genericcontainer<A, B = int> = { \
-            a: GenericType<(string, string), array<(string, int)>>, \
-            b: GenericType<(A, string), array<(B, int)>>, \
-            c: GenericType<(A, string), array<(GenericType<(A, string), array<(B, int)>>, int)>>, \
+        "type genericContainer<A, B = int> = {\n  \
+            a: genericType<(string, string), array<(string, int)>>,\n  \
+            b: genericType<(A, string), array<(B, int)>>,\n  \
+            c: genericType<(A, string), array<(genericType<(A, string), array<(B, int)>>, int)>>,\n\
         }"
     );
 }

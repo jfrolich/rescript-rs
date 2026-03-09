@@ -6,9 +6,9 @@ use std::{
     rc::Rc,
 };
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[rescript(export, export_to = "generics/")]
@@ -67,34 +67,37 @@ fn test() {
     let cfg = Config::from_env();
     assert_eq!(
         TypeGroup::decl(&cfg),
-        "type typegroup = { foo: array<Container>, }",
+        "type typeGroup = {\n  foo: array<container>,\n}",
     );
 
     assert_eq!(
         Generic::<()>::decl(&cfg),
-        "type generic<T> = { value: T, values: array<T>, }"
+        "type generic<T> = {\n  value: T,\n  values: array<T>,\n}"
     );
 
     assert_eq!(
         GenericAutoBound::<()>::decl(&cfg),
-        "type genericautobound<T> = { value: T, values: array<T>, }"
+        "type genericAutoBound<T> = {\n  value: T,\n  values: array<T>,\n}"
     );
 
     assert_eq!(
         GenericAutoBound2::<()>::decl(&cfg),
-        "type genericautobound2<T> = { value: T, values: array<T>, }"
+        "type genericAutoBound2<T> = {\n  value: T,\n  values: array<T>,\n}"
     );
 
     assert_eq!(
         Container::decl(&cfg),
-        "type container = { foo: Generic<int>, bar: array<Generic<int>>, baz: Dict.t<Generic<string>>, }"
+        "type container = {\n  foo: generic<int>,\n  bar: array<generic<int>>,\n  baz: Dict.t<generic<string>>,\n}"
     );
 }
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "value")
+)]
 #[rescript(export, export_to = "generics/")]
 enum GenericEnum<A, B, C> {
     A(A),
@@ -112,7 +115,7 @@ fn generic_enum() {
     let cfg = Config::from_env();
     assert_eq!(
         GenericEnum::<(), (), ()>::decl(&cfg),
-        "@tag(\"type\")\ntype genericenum<A, B, C> = | A({ value: A }) | B({ value: (B, B, B) }) | C({ value: array<C> }) | D({ value: array<array<array<A>>> }) | E({ value: { a: A, b: B, c: C, } }) | X({ value: array<int> }) | Y({ value: int }) | Z({ value: array<array<int>> })"
+        "@tag(\"type\")\ntype genericEnum<A, B, C> = \n  | A({ value: A })\n  | B({ value: (B, B, B) })\n  | C({ value: array<C> })\n  | D({ value: array<array<array<A>>> })\n  | E({ value: { a: A, b: B, c: C, } })\n  | X({ value: array<int> })\n  | Y({ value: int })\n  | Z({ value: array<array<int>> })"
     )
 }
 
@@ -125,7 +128,7 @@ fn generic_newtype() {
     let cfg = Config::from_env();
     assert_eq!(
         NewType::<()>::decl(&cfg),
-        "type newtype<T> = array<array<T>>"
+        "type newType<T> = array<array<T>>"
     );
 }
 
@@ -160,7 +163,7 @@ fn generic_struct() {
     let cfg = Config::from_env();
     assert_eq!(
         Struct::<()>::decl(&cfg),
-        "type struct<T> = { a: T, b: (T, T), c: (T, (T, T)), d: (T, T, T), e: ((T, T), (T, T), (T, T)), f: array<T>, g: array<array<T>>, h: array<((T, T), (T, T), (T, T))>, }"
+        "type struct<T> = {\n  a: T,\n  b: (T, T),\n  c: (T, (T, T)),\n  d: (T, T, T),\n  e: ((T, T), (T, T), (T, T)),\n  f: array<T>,\n  g: array<array<T>>,\n  h: array<((T, T), (T, T), (T, T))>,\n}"
     )
 }
 
@@ -185,11 +188,11 @@ fn inline() {
     let cfg = Config::from_env();
     assert_eq!(
         GenericInline::<()>::decl(&cfg),
-        "type genericinline<T> = { t: T, }"
+        "type genericInline<T> = {\n  t: T,\n}"
     );
     assert_eq!(
         ContainerInline::decl(&cfg),
-        "type containerinline = { g: GenericInline<string>, gi: { t: string, }, t: array<string>, }"
+        "type containerInline = { g: genericInline<string>, gi: { t: string, }, t: array<string>, }"
     );
 }
 
@@ -216,11 +219,11 @@ fn inline_with_bounds() {
     let cfg = Config::from_env();
     assert_eq!(
         GenericWithBounds::<&'static str>::decl(&cfg),
-        "type genericwithbounds<T> = { t: T, }"
+        "type genericWithBounds<T> = {\n  t: T,\n}"
     );
     assert_eq!(
         ContainerWithBounds::decl(&cfg),
-        "type containerwithbounds = { g: GenericWithBounds<string>, gi: { t: string, }, t: int, }"
+        "type containerWithBounds = { g: genericWithBounds<string>, gi: { t: string, }, t: int, }"
     );
 }
 
@@ -247,11 +250,11 @@ fn inline_with_default() {
     let cfg = Config::from_env();
     assert_eq!(
         GenericWithDefault::<()>::decl(&cfg),
-        "type genericwithdefault<T = string> = { t: T, }"
+        "type genericWithDefault<T = string> = {\n  t: T,\n}"
     );
     assert_eq!(
         ContainerWithDefault::decl(&cfg),
-        "type containerwithdefault = { g: GenericWithDefault<string>, gi: { t: string, }, t: int, }"
+        "type containerWithDefault = { g: genericWithDefault<string>, gi: { t: string, }, t: int, }"
     );
 }
 
@@ -279,12 +282,12 @@ fn default() {
     let cfg = Config::from_env();
     assert_eq!(
         ADefault::<()>::decl(&cfg),
-        "type adefault<T = string> = { t: T, }"
+        "type aDefault<T = string> = {\n  t: T,\n}"
     );
 
     assert_eq!(
         BDefault::<()>::decl(&cfg),
-        "type bdefault<U = option<ADefault<int>>> = { u: U, }"
+        "type bDefault<U = option<aDefault<int>>> = {\n  u: U,\n}"
     );
     assert!(BDefault::<()>::dependencies(&cfg)
         .iter()
@@ -292,7 +295,7 @@ fn default() {
 
     assert_eq!(
         YDefault::decl(&cfg),
-        "type ydefault = { a1: ADefault<string>, a2: ADefault<int>, }"
+        "type yDefault = {\n  a1: aDefault<string>,\n  a2: aDefault<int>,\n}"
     )
 }
 
@@ -309,7 +312,10 @@ struct BTraitBounds<T: ToString + Debug + Clone + 'static>(T);
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "value")
+)]
 #[rescript(export, export_to = "generics/")]
 enum CTraitBounds<T: Copy + Clone + PartialEq, K: Copy + PartialOrd = i32> {
     A { t: T },
@@ -329,21 +335,21 @@ fn trait_bounds() {
     let cfg = Config::from_env();
     assert_eq!(
         ATraitBounds::<i32>::decl(&cfg),
-        "type atraitbounds<T = int> = { t: T, }"
+        "type aTraitBounds<T = int> = {\n  t: T,\n}"
     );
 
     assert_eq!(
         BTraitBounds::<&'static str>::decl(&cfg),
-        "type btraitbounds<T> = T"
+        "type bTraitBounds<T> = T"
     );
 
     assert_eq!(
         CTraitBounds::<&'static str, i32>::decl(&cfg),
-        "@tag(\"type\")\ntype ctraitbounds<T, K = int> = | A({ value: { t: T, } }) | B({ value: T }) | C | D({ value: (T, K) })"
+        "@tag(\"type\")\ntype cTraitBounds<T, K = int> = \n  | A({ value: { t: T, } })\n  | B({ value: T })\n  | C\n  | D({ value: (T, K) })"
     );
 
     let ty = format!(
-        "type dtraitbounds<T> = {{ t: ({}), }}",
+        "type dTraitBounds<T> = {{\n  t: ({}),\n}}",
         "T, ".repeat(41).trim_end_matches(", ")
     );
     assert_eq!(DTraitBounds::<&str, 41>::decl(&cfg), ty)
@@ -397,17 +403,17 @@ fn deeply_nested() {
     let cfg = Config::from_env();
     assert_eq!(
         Parent::inline(&cfg),
-        "{ a: T1<T0<int>>, b: T1<P1<T0<P0<int>>>>, c: T1<P1<unit>>, }"
+        "{ a: t1<t0<int>>, b: t1<p1<t0<p0<int>>>>, c: t1<p1<unit>>, }"
     );
     assert_eq!(
         GenericParent::<()>::decl(&cfg),
-        "type genericparent<T> = { \
-            a_t: T1<T0<T>>, \
-            b_t: T1<P1<T0<P0<T>>>>, \
-            c_t: T1<P1<T>>, \
-            a_null: T1<T0<unit>>, \
-            b_null: T1<P1<T0<P0<unit>>>>, \
-            c_null: T1<P1<unit>>, \
+        "type genericParent<T> = {\n  \
+            a_t: t1<t0<T>>,\n  \
+            b_t: t1<p1<t0<p0<T>>>>,\n  \
+            c_t: t1<p1<T>>,\n  \
+            a_null: t1<t0<unit>>,\n  \
+            b_null: t1<p1<t0<p0<unit>>>>,\n  \
+            c_null: t1<p1<unit>>,\n\
          }"
     );
 }
@@ -419,7 +425,10 @@ struct SomeType(String);
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "value")
+)]
 #[rescript(export, export_to = "generics/")]
 enum MyEnum<A, B> {
     VariantA(A),
@@ -439,9 +448,9 @@ fn inline_generic_enum() {
     let cfg = Config::from_env();
     assert_eq!(
         ParentEnum::decl(&cfg),
-        "type parentenum = { \
-            e: MyEnum<int, int>, \
-            e1: | VariantA({ value: int }) | VariantB({ value: SomeType }), \
+        "type parentEnum = {\n  \
+            e: myEnum<int, int>,\n  \
+            e1: \n  | VariantA({ value: int })\n  | VariantB({ value: someType }),\n\
         }"
     );
 }

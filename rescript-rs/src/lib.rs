@@ -551,6 +551,15 @@ impl Dependency {
     }
 }
 
+/// Convert a PascalCase name to camelCase by lowering the first character.
+pub fn to_camel_case(s: &str) -> String {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(first) => first.to_lowercase().to_string() + chars.as_str(),
+        None => String::new(),
+    }
+}
+
 /// Configuration that affects the generation of ReScript bindings and how they are exported.
 pub struct Config {
     // RESCRIPT_RS_LARGE_INT

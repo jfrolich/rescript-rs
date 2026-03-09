@@ -1,7 +1,7 @@
-#[cfg(feature = "serde-compat")]
-use serde::Serialize;
 use rescript_rs::Config;
 use rescript_rs::TS;
+#[cfg(feature = "serde-compat")]
+use serde::Serialize;
 
 // https://github.com/Aleph-Alpha/ts-rs/issues/335
 #[derive(TS)]
@@ -26,7 +26,10 @@ struct TwoParameters<A, B> {
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "value")
+)]
 #[rescript(export, export_to = "generics/flatten/")]
 enum Enum<A, B> {
     A {
@@ -53,10 +56,10 @@ fn flattened_generic_parameters() {
     assert_eq!(Item::<()>::decl(&cfg), "type item<D> = { id: string, } & D");
     assert_eq!(
         TwoParameters::<(), ()>::decl(&cfg),
-        "type twoparameters<A, B> = { id: string, ab: (A, B), } & A & B"
+        "type twoParameters<A, B> = { id: string, ab: (A, B), } & A & B"
     );
     assert_eq!(
         Enum::<(), ()>::decl(&cfg),
-        "@tag(\"type\")\ntype enum<A, B> = | A({ value: A }) | B({ value: B }) | AB({ value: (A, B) })"
+        "@tag(\"type\")\ntype enum<A, B> = \n  | A({ value: A })\n  | B({ value: B })\n  | AB({ value: (A, B) })"
     );
 }

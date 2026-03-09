@@ -25,7 +25,7 @@ struct A<'a> {
 #[test]
 fn contains_borrow() {
     let cfg = Config::from_env();
-    assert_eq!(S::decl(&cfg), "type s = { s: string, }")
+    assert_eq!(S::decl(&cfg), "type s = {\n  s: string,\n}")
 }
 
 #[test]
@@ -33,6 +33,6 @@ fn contains_borrow_type_args() {
     let cfg = Config::from_env();
     assert_eq!(
         A::decl(&cfg),
-        "type a = { a: array<int>, b: array<B<int>>, c: Dict.t<bool>, }"
+        "type a = {\n  a: array<int>,\n  b: array<b<int>>,\n  c: Dict.t<bool>,\n}"
     );
 }

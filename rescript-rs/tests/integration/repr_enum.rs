@@ -52,45 +52,33 @@ enum KebabCase {
 #[test]
 fn repr_enum_decl() {
     let cfg = Config::from_env();
-    assert_eq!(
-        Foo::decl(&cfg),
-        "type foo = | @as(1) A | @as(2) B"
-    );
-    assert_eq!(
-        Bar::decl(&cfg),
-        "type bar = | @as(1) A | B"
-    );
-    assert_eq!(
-        Baz::decl(&cfg),
-        "type baz = | A | B"
-    );
-    assert_eq!(
-        Biz::decl(&cfg),
-        "type biz = | A | B"
-    );
+    assert_eq!(Foo::decl(&cfg), "type foo = \n  | @as(1) A\n  | @as(2) B");
+    assert_eq!(Bar::decl(&cfg), "type bar = \n  | @as(1) A\n  | B");
+    assert_eq!(Baz::decl(&cfg), "type baz = \n  | A\n  | B");
+    assert_eq!(Biz::decl(&cfg), "type biz = \n  | A\n  | B");
     assert_eq!(
         SnakeCase::decl(&cfg),
-        r#"type snakecase = | @as("enum_variant_foo") EnumVariantFoo | @as("enum_variant_bar") EnumVariantBar"#
+        "type snakeCase = \n  | @as(\"enum_variant_foo\") EnumVariantFoo\n  | @as(\"enum_variant_bar\") EnumVariantBar"
     );
     assert_eq!(
         CamelCase::decl(&cfg),
-        r#"type camelcase = | @as("enumVariantFoo") EnumVariantFoo | @as("enumVariantBar") EnumVariantBar"#
+        "type camelCase = \n  | @as(\"enumVariantFoo\") EnumVariantFoo\n  | @as(\"enumVariantBar\") EnumVariantBar"
     );
     assert_eq!(
         KebabCase::decl(&cfg),
-        r#"type kebabcase = | @as("enum-variant-foo") EnumVariantFoo | @as("enum-variant-bar") EnumVariantBar"#
+        "type kebabCase = \n  | @as(\"enum-variant-foo\") EnumVariantFoo\n  | @as(\"enum-variant-bar\") EnumVariantBar"
     );
 }
 
 #[test]
 fn repr_enum_inline() {
     let cfg = Config::from_env();
-    assert_eq!(Foo::inline(&cfg), "| @as(1) A | @as(2) B");
-    assert_eq!(Bar::inline(&cfg), "| @as(1) A | B");
-    assert_eq!(Baz::inline(&cfg), "| A | B");
-    assert_eq!(Biz::inline(&cfg), "| A | B");
+    assert_eq!(Foo::inline(&cfg), "\n  | @as(1) A\n  | @as(2) B");
+    assert_eq!(Bar::inline(&cfg), "\n  | @as(1) A\n  | B");
+    assert_eq!(Baz::inline(&cfg), "\n  | A\n  | B");
+    assert_eq!(Biz::inline(&cfg), "\n  | A\n  | B");
     assert_eq!(
         SnakeCase::inline(&cfg),
-        r#"| @as("enum_variant_foo") EnumVariantFoo | @as("enum_variant_bar") EnumVariantBar"#
+        "\n  | @as(\"enum_variant_foo\") EnumVariantFoo\n  | @as(\"enum_variant_bar\") EnumVariantBar"
     );
 }

@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
@@ -77,7 +77,10 @@ struct FooAdjecently {
 #[rescript(export, export_to = "enum_flattening_nested/adjacently_tagged/")]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "stuff"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "stuff"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "stuff")
+)]
 enum BarAdjecently {
     Baz {
         a: i32,

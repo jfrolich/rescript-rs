@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
@@ -23,13 +23,7 @@ struct EmptyTaggedType {}
 fn test() {
     let cfg = Config::from_env();
     // In ReScript mode, struct tags are dropped (ReScript has no equivalent)
-    assert_eq!(
-        TaggedType::inline(&cfg),
-        "{ a: int, b: int, }"
-    );
+    assert_eq!(TaggedType::inline(&cfg), "{ a: int, b: int, }");
 
-    assert_eq!(
-        EmptyTaggedType::inline(&cfg),
-        "{  }"
-    );
+    assert_eq!(EmptyTaggedType::inline(&cfg), "{  }");
 }

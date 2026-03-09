@@ -1,14 +1,17 @@
 #![allow(dead_code)]
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[rescript(export, export_to = "enum_variant_anotation/")]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[cfg_attr(feature = "serde-compat", serde(rename_all = "SCREAMING_SNAKE_CASE"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(rename_all = "SCREAMING_SNAKE_CASE"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(rename_all = "SCREAMING_SNAKE_CASE")
+)]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type"))]
 #[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type"))]
 enum A {
@@ -29,7 +32,7 @@ fn test_enum_variant_rename_all() {
     let cfg = Config::from_env();
     assert_eq!(
         A::inline(&cfg),
-        "| @as(\"MESSAGE_ONE\") MessageOne({ sender_id: string, number_of_snakes: BigInt.t, }) | @as(\"MESSAGE_TWO\") MessageTwo({ senderId: string, numberOfCamels: BigInt.t, })",
+        "\n  | @as(\"MESSAGE_ONE\") MessageOne({ sender_id: string, number_of_snakes: BigInt.t, })\n  | @as(\"MESSAGE_TWO\") MessageTwo({ senderId: string, numberOfCamels: BigInt.t, })",
     );
 }
 
@@ -58,7 +61,7 @@ fn test_enum_variant_rename() {
     let cfg = Config::from_env();
     assert_eq!(
         B::inline(&cfg),
-        "| @as(\"SnakeMessage\") MessageOne({ sender_id: string, number_of_snakes: BigInt.t, }) | @as(\"CamelMessage\") MessageTwo({ sender_id: string, number_of_camels: BigInt.t, })",
+        "\n  | @as(\"SnakeMessage\") MessageOne({ sender_id: string, number_of_snakes: BigInt.t, })\n  | @as(\"CamelMessage\") MessageTwo({ sender_id: string, number_of_camels: BigInt.t, })",
     );
 }
 
@@ -79,7 +82,10 @@ pub enum C {
 #[test]
 fn test_enum_variant_with_tag() {
     let cfg = Config::from_env();
-    assert_eq!(C::inline(&cfg), "| @as(\"SQUARE_THING\") SquareThing({ name: string, })");
+    assert_eq!(
+        C::inline(&cfg),
+        "\n  | @as(\"SQUARE_THING\") SquareThing({ name: string, })"
+    );
 }
 
 #[cfg(feature = "serde-compat")]
@@ -93,7 +99,7 @@ fn test_tag_and_content_quoted() {
     let cfg = Config::from_env();
     assert_eq!(
         E::inline(&cfg),
-        "| V({ whitespace in content: { f: string, } })"
+        "\n  | V({ whitespace in content: { f: string, } })"
     )
 }
 
@@ -106,7 +112,10 @@ fn test_variant_quoted() {
         VariantName { f: String },
     }
     let cfg = Config::from_env();
-    assert_eq!(E::inline(&cfg), "| @as(\"variant-name\") VariantName({ f: string, })")
+    assert_eq!(
+        E::inline(&cfg),
+        "\n  | @as(\"variant-name\") VariantName({ f: string, })"
+    )
 }
 
 #[derive(TS)]
@@ -128,6 +137,6 @@ fn test_empty_struct_variant_with_tag() {
     let cfg = Config::from_env();
     assert_eq!(
         E::inline(&cfg),
-        "| Foo({  }) | Bar({  }) | Biz({ x: int, })"
+        "\n  | Foo({  })\n  | Bar({  })\n  | Biz({ x: int, })"
     )
 }

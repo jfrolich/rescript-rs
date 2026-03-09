@@ -13,6 +13,7 @@ pub(crate) fn empty_object(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
     DerivedTS {
         crate_rename: crate_rename.clone(),
         inline: quote!("{  }".to_owned()),
+        decl_inline: None,
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),
@@ -33,6 +34,7 @@ pub(crate) fn empty_array(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
     DerivedTS {
         crate_rename: crate_rename.clone(),
         inline: quote!("array<never>".to_owned()),
+        decl_inline: None,
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),
@@ -53,6 +55,7 @@ pub(crate) fn null(attr: &StructAttr, ts_name: Expr) -> DerivedTS {
     DerivedTS {
         crate_rename: crate_rename.clone(),
         inline: quote!("unit".to_owned()),
+        decl_inline: None,
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),

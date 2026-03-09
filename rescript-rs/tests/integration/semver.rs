@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 #![cfg(feature = "semver-impl")]
 
-use semver::Version;
 use rescript_rs::{Config, TS};
+use semver::Version;
 
 #[derive(TS)]
 #[rescript(export, export_to = "semver/")]

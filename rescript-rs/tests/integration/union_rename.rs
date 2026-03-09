@@ -19,7 +19,7 @@ fn test_simple_enum() {
     let cfg = Config::from_env();
     assert_eq!(
         RenamedEnum::decl(&cfg),
-        "type simpleenum = | @as(\"ASDF\") A | @as(\"BB\") B | @as(\"CC\") C"
+        "type simpleEnum = \n  | @as(\"ASDF\") A\n  | @as(\"BB\") B\n  | @as(\"CC\") C"
     )
 }
 
@@ -37,7 +37,7 @@ fn test_rename_with_string_expression() {
     let cfg = Config::from_env();
     assert_eq!(
         WithStringExpression::decl(&cfg),
-        "type renamedwithstringexpression = | A | B | C"
+        "type renamedWithStringExpression = \n  | A\n  | B\n  | C"
     )
 }
 
@@ -55,7 +55,7 @@ fn test_rename_with_str_expression() {
     let cfg = Config::from_env();
     assert_eq!(
         WithStrExpression::decl(&cfg),
-        "type renamedwithstrexpression = | A | B | C"
+        "type renamedWithStrExpression = \n  | A\n  | B\n  | C"
     )
 }
 
@@ -73,6 +73,6 @@ fn test_rename_using_module_name() {
     let cfg = Config::from_env();
     assert_eq!(
         RenameUsingModuleName::decl(&cfg),
-        "type i_am_inside_module_union_rename = | A | B | C"
+        "type i_am_inside_module_union_rename = \n  | A\n  | B\n  | C"
     )
 }

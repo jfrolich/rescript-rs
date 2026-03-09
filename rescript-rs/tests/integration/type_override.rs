@@ -2,9 +2,9 @@
 
 use std::time::Instant;
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 struct Unsupported<T>(T);
 struct Unsupported2;
@@ -72,6 +72,6 @@ enum Adjacent {
 fn enum_newtype_representations() {
     // regression test for https://github.com/Aleph-Alpha/ts-rs/issues/126
     let cfg = Config::from_env();
-    assert_eq!(Internal::inline(&cfg), r#"| Newtype(unknown)"#);
-    assert_eq!(Adjacent::inline(&cfg), r#"| Newtype({ c: unknown })"#);
+    assert_eq!(Internal::inline(&cfg), "\n  | Newtype(unknown)");
+    assert_eq!(Adjacent::inline(&cfg), "\n  | Newtype({ c: unknown })");
 }

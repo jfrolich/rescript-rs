@@ -29,6 +29,6 @@ fn with_custom_types() {
     );
     assert_eq!(
         HashSetWithCustomType::decl(&cfg),
-        "type hashsetwithcustomtype = { set: array<CustomValue>, }"
+        "type hashSetWithCustomType = {\n  set: array<customValue>,\n}"
     );
 }

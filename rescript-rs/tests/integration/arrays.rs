@@ -11,16 +11,16 @@ struct Interface {
 #[test]
 fn free() {
     let cfg = Config::from_env();
-    assert_eq!(<[String; 4]>::inline(&cfg), "(string, string, string, string)")
+    assert_eq!(
+        <[String; 4]>::inline(&cfg),
+        "(string, string, string, string)"
+    )
 }
 
 #[test]
 fn interface() {
     let cfg = Config::from_env();
-    assert_eq!(
-        Interface::inline(&cfg),
-        "{ a: (int, int, int, int), }"
-    )
+    assert_eq!(Interface::inline(&cfg), "{ a: (int, int, int, int), }")
 }
 
 #[test]

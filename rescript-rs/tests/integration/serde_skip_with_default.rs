@@ -1,8 +1,8 @@
 #![cfg(feature = "serde-compat")]
 #![allow(dead_code)]
 
-use serde::{Deserialize, Serialize};
 use rescript_rs::{Config, TS};
+use serde::{Deserialize, Serialize};
 
 fn default_http_version() -> String {
     "2".to_owned()
@@ -19,5 +19,5 @@ pub struct Foobar {
 #[test]
 fn serde_skip_with_default() {
     let cfg = Config::from_env();
-    assert_eq!(Foobar::decl(&cfg), "type foobar = { something_else: int, }");
+    assert_eq!(Foobar::decl(&cfg), "type foobar = {\n  something_else: int,\n}");
 }

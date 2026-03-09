@@ -17,6 +17,7 @@ pub(crate) fn type_override_struct(
     Ok(DerivedTS {
         crate_rename: crate_rename.clone(),
         inline: quote!(#type_override.to_owned()),
+        decl_inline: None,
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),
@@ -41,6 +42,7 @@ pub(crate) fn type_override_enum(
     Ok(DerivedTS {
         crate_rename: crate_rename.clone(),
         inline: quote!(#type_override.to_owned()),
+        decl_inline: None,
         inline_flattened: None,
         docs: attr.docs.clone(),
         dependencies: Dependencies::new(crate_rename),

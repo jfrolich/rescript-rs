@@ -113,11 +113,24 @@ pub fn to_ts_ident(ident: &Ident) -> String {
     }
 }
 
-/// Convert an arbitrary name to a valid Typescript field name.
+/// ReScript reserved keywords that cannot be used as record field names.
+const RESCRIPT_RESERVED: &[&str] = &[
+    "and", "as", "assert", "async", "await", "catch", "constraint", "else",
+    "exception", "external", "false", "for", "if", "in", "include", "lazy",
+    "let", "module", "mutable", "of", "open", "private", "rec", "switch",
+    "true", "try", "type", "when", "while",
+];
+
+/// Convert an arbitrary name to a valid ReScript field name.
 ///
-/// If the name contains special characters or if its first character
-/// is a number it will be wrapped in quotes.
+/// If the name is a reserved keyword, it is suffixed with `_` and
+/// an `@as("original")` annotation is prepended so the JS property
+/// name is preserved.
 pub fn raw_name_to_ts_field(value: String) -> String {
+    if RESCRIPT_RESERVED.contains(&value.as_str()) {
+        return format!(r#"@as("{value}") {value}_"#);
+    }
+
     let valid_chars = value
         .chars()
         .all(|c| c.is_alphanumeric() || c == '_' || c == '$');
@@ -132,7 +145,7 @@ pub fn raw_name_to_ts_field(value: String) -> String {
     if valid {
         value
     } else {
-        format!(r#""{value}""#)
+        format!(r#"@as("{value}") {value}_"#)
     }
 }
 

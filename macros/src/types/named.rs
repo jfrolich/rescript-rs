@@ -33,6 +33,10 @@ pub(crate) fn named(attr: &StructAttr, ts_name: Expr, fields: &FieldsNamed) -> R
     }
 
     let fields = quote!(<[String]>::join(&[#(#formatted_fields),*], " "));
+    let fields_expanded = quote!(<[String]>::join(
+        &[#(#formatted_fields),*].map(|f| format!("  {}", f)),
+        "\n"
+    ));
     let flattened = quote!(<[String]>::join(&[#(#flattened_fields),*], " & "));
 
     let inline = match (formatted_fields.len(), flattened_fields.len()) {
@@ -56,11 +60,17 @@ pub(crate) fn named(attr: &StructAttr, ts_name: Expr, fields: &FieldsNamed) -> R
         (_, _) => quote!(format!("{{ {} }} & {}", #fields, #flattened)),
     };
 
+    let decl_inline = match (formatted_fields.len(), flattened_fields.len()) {
+        (0, _) | (_, 1..) => None,
+        (_, 0) => Some(quote!(format!("{{\n{}\n}}", #fields_expanded))),
+    };
+
     Ok(DerivedTS {
         crate_rename,
         // the `replace` combines `{ ... } & { ... }` into just one `{ ... }`. Not necessary, but it
         // results in simpler type definitions.
         inline: quote!(#inline.replace(" } & { ", " ")),
+        decl_inline,
         inline_flattened: Some(quote!(#inline_flattened.replace(" } & { ", " "))),
         docs: attr.docs.clone(),
         dependencies,

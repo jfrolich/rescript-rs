@@ -3,8 +3,8 @@
 use std::{collections::BTreeSet, rc::Rc};
 
 use chrono::NaiveDateTime;
-use serde::Serialize;
 use rescript_rs::TS;
+use serde::Serialize;
 use uuid::Uuid;
 
 #[derive(Serialize, TS)]

@@ -2,8 +2,8 @@
 
 use std::error::Error;
 
-use serde::Serialize;
 use rescript_rs::{Config, TS};
+use serde::Serialize;
 
 struct Unsupported;
 
@@ -60,7 +60,7 @@ fn externally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         Externally::decl(&cfg),
-        "@tag(\"type\")\ntype externally = | A | B({ value: (int) }) | C({ value: {  } }) | D({ value: { y: int, } })"
+        "@tag(\"type\")\ntype externally = \n  | A\n  | B({ value: (int) })\n  | C({ value: {  } })\n  | D({ value: { y: int, } })"
     );
 }
 
@@ -93,7 +93,7 @@ fn internally_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         Internally::decl(&cfg),
-        "@tag(\"t\")\ntype internally = | A | B({  }) | C({ y: int, })"
+        "@tag(\"t\")\ntype internally = \n  | A\n  | B({  })\n  | C({ y: int, })"
     );
 }
 
@@ -133,6 +133,6 @@ fn adjacently_tagged() {
     let cfg = Config::from_env();
     assert_eq!(
         Adjacently::decl(&cfg),
-        "@tag(\"t\")\ntype adjacently = | A | B({ c: (int) }) | C({ c: {  } }) | D({ c: { y: int, } })"
+        "@tag(\"t\")\ntype adjacently = \n  | A\n  | B({ c: (int) })\n  | C({ c: {  } })\n  | D({ c: { y: int, } })"
     );
 }

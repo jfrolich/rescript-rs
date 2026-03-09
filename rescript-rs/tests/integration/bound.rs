@@ -34,10 +34,10 @@ fn test_bound() {
     let cfg = Config::from_env();
     assert_eq!(
         Outer::<TsDriver>::decl(&cfg),
-        "type outer = { inner: Inner, }"
+        "type outer = {\n  inner: inner,\n}"
     );
     assert_eq!(
         Inner::<TsDriver>::decl(&cfg),
-        "type inner = { info: TsInfo, }"
+        "type inner = {\n  info: tsInfo,\n}"
     );
 }

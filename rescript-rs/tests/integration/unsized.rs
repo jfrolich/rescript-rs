@@ -18,6 +18,6 @@ fn contains_str() {
     let cfg = Config::from_env();
     assert_eq!(
         S::decl(&cfg),
-        "type s = { b: string, c: string, r: string, a: string, }"
+        "type s = {\n  b: string,\n  c: string,\n  r: string,\n  a: string,\n}"
     )
 }

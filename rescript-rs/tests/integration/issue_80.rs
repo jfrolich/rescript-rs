@@ -1,5 +1,5 @@
-use serde::Serialize;
 use rescript_rs::{Config, TS};
+use serde::Serialize;
 
 #[derive(TS, Serialize)]
 #[serde(tag = "type")]
@@ -17,5 +17,5 @@ pub enum SomeTypeList {
 fn issue_80() {
     let cfg = Config::from_env();
     let ty = SomeTypeList::inline(&cfg);
-    assert_eq!(ty, r#"| Value1({  }) | Value2"#);
+    assert_eq!(ty, "\n  | Value1({  })\n  | Value2");
 }

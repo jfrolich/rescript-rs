@@ -1,7 +1,7 @@
 #![allow(unused, dead_code, clippy::disallowed_names)]
 
-use serde::{Deserialize, Serialize};
 use rescript_rs::{Config, TS};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, TS)]
 struct Foo {
@@ -52,7 +52,7 @@ fn serde_compat_as() {
     }
 
     let cfg = Config::from_env();
-    assert_eq!(Baz::inline(&cfg), "{ a: Bar, }")
+    assert_eq!(Baz::inline(&cfg), "{ a: bar, }")
 }
 
 #[test]

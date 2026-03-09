@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::{Deserialize, Serialize};
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Deserialize))]
@@ -43,16 +43,16 @@ fn test_serde_enum() {
     let cfg = Config::from_env();
     assert_eq!(
         SimpleEnum::decl(&cfg),
-        "@tag(\"kind\")\ntype simpleenum = | A | B"
+        "@tag(\"kind\")\ntype simpleEnum = \n  | A\n  | B"
     );
     assert_eq!(
         ComplexEnum::decl(&cfg),
-        "@tag(\"kind\")\ntype complexenum = | A | B({ data: { foo: string, bar: float, } }) | W({ data: SimpleEnum }) | F({ data: { nested: SimpleEnum, } }) | T({ data: (int, SimpleEnum) })"
+        "@tag(\"kind\")\ntype complexEnum = \n  | A\n  | B({ data: { foo: string, bar: float, } })\n  | W({ data: simpleEnum })\n  | F({ data: { nested: simpleEnum, } })\n  | T({ data: (int, simpleEnum) })"
     );
 
     assert_eq!(
         Untagged::decl(&cfg),
-        "type untagged = | Foo(string) | Bar(int) | None "
+        "type untagged = \n  | Foo(string)\n  | Bar(int)\n  | None "
     )
 }
 
@@ -71,5 +71,8 @@ enum Enum {
 #[test]
 fn test_rename_all() {
     let cfg = Config::from_env();
-    assert_eq!(Enum::inline(&cfg), "| @as(\"firstOption\") FirstOption | @as(\"secondOption\") SecondOption");
+    assert_eq!(
+        Enum::inline(&cfg),
+        "\n  | @as(\"firstOption\") FirstOption\n  | @as(\"secondOption\") SecondOption"
+    );
 }

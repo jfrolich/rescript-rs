@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Deserialize;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Deserialize))]
@@ -23,7 +23,10 @@ enum TestUntagged {
 #[cfg_attr(feature = "serde-compat", derive(Deserialize))]
 #[rescript(export, export_to = "union_unnamed_serde/")]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "value"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "value"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "value")
+)]
 enum TestExternally {
     A,   // serde_json -> `"A"`
     B(), // serde_json -> `{"B":[]}`
@@ -37,7 +40,10 @@ enum TestExternally {
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Deserialize))]
 #[cfg_attr(feature = "serde-compat", serde(tag = "type", content = "content"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "type", content = "content"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "type", content = "content")
+)]
 #[rescript(export, export_to = "union_unnamed_serde/")]
 enum TestAdjacently {
     A,   // serde_json -> `{"type":"A"}`
@@ -69,21 +75,21 @@ fn test() {
     let cfg = Config::from_env();
     assert_eq!(
         TestUntagged::decl(&cfg),
-        "type testuntagged = | A  | B(array<never>) | C(unit)"
+        "type testUntagged = \n  | A \n  | B(array<never>)\n  | C(unit)"
     );
 
     assert_eq!(
         TestExternally::decl(&cfg),
-        "@tag(\"type\")\ntype testexternally = | A | B({ value: array<never> }) | C"
+        "@tag(\"type\")\ntype testExternally = \n  | A\n  | B({ value: array<never> })\n  | C"
     );
 
     assert_eq!(
         TestAdjacently::decl(&cfg),
-        "@tag(\"type\")\ntype testadjacently = | A | B({ content: array<never> }) | C"
+        "@tag(\"type\")\ntype testAdjacently = \n  | A\n  | B({ content: array<never> })\n  | C"
     );
 
     assert_eq!(
         TestInternally::decl(&cfg),
-        "@tag(\"type\")\ntype testinternally = | A | B | C"
+        "@tag(\"type\")\ntype testInternally = \n  | A\n  | B\n  | C"
     );
 }

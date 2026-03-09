@@ -46,7 +46,7 @@ pub(crate) fn r#enum_def(s: &ItemEnum) -> syn::Result<DerivedTS> {
         )?;
     }
 
-    let separator = " ";
+    let separator = "\n  ";
 
     let tag_annotation = match enum_attr.tagged()? {
         Tagged::Internally { tag } | Tagged::Adjacently { tag, .. } => Some(tag.to_string()),
@@ -55,7 +55,8 @@ pub(crate) fn r#enum_def(s: &ItemEnum) -> syn::Result<DerivedTS> {
 
     Ok(DerivedTS {
         crate_rename,
-        inline: quote!([#(#formatted_variants),*].join(#separator)),
+        inline: quote!(format!("\n  {}", [#(#formatted_variants),*].join(#separator))),
+        decl_inline: None,
         inline_flattened: enum_attr.repr.is_none().then_some(quote!(
             format!("({})", [#(#formatted_variants),*].join(" "))
         )),
@@ -112,15 +113,15 @@ fn format_variant(
             }
             (Repr::Int, None) => quote!(format!("| {}", #rust_variant_name)),
             (Repr::Name, _) => {
-                quote! {{
+                quote!({
                     let serde_name: String = (#ts_name).to_string();
-                    let rust_name = #rust_variant_name;
-                    if serde_name == rust_name {
-                        format!("| {}", rust_name)
+                    let as_prefix = if serde_name == #rust_variant_name {
+                        String::new()
                     } else {
-                        format!("| @as(\"{}\") {}", serde_name, rust_name)
-                    }
-                }}
+                        format!("@as(\"{}\") ", serde_name)
+                    };
+                    format!("| {}{}", as_prefix, #rust_variant_name)
+                })
             }
         };
 
@@ -130,11 +131,7 @@ fn format_variant(
     }
 
     let struct_attr = StructAttr::from_variant(enum_attr, &variant_attr, &variant.fields);
-    let variant_type = types::type_def(
-        &struct_attr,
-        ts_name.clone(),
-        &variant.fields,
-    )?;
+    let variant_type = types::type_def(&struct_attr, ts_name.clone(), &variant.fields)?;
 
     let variant_dependencies = variant_type.dependencies;
     let inline_type = variant_type.inline;
@@ -152,9 +149,11 @@ fn format_variant(
         }
     };
 
+    // Emit @as("serde_name") only when the serde name differs from the Rust
+    // variant name.  ReScript v12 uses the variant constructor name as its
+    // string representation by default, so @as is only needed for renames.
     let formatted = match (untagged_variant, enum_attr.tagged()?) {
         (true, _) | (_, Tagged::Untagged) => {
-            // Untagged variants use @unboxed in ReScript
             match &variant.fields {
                 Fields::Unit => quote!(format!("| {} ", #rust_variant_name)),
                 _ => quote!(format!("| {}({})", #rust_variant_name, #parsed_ty)),
@@ -162,19 +161,17 @@ fn format_variant(
         }
         (false, Tagged::Externally) => match &variant.fields {
             Fields::Unit => {
-                // Unit variant: check if serde name differs from Rust name
-                quote! {{
+                quote!({
                     let serde_name: String = (#ts_name).to_string();
-                    let rust_name = #rust_variant_name;
-                    if serde_name == rust_name {
-                        format!("| {}", rust_name)
+                    let as_prefix = if serde_name == #rust_variant_name {
+                        String::new()
                     } else {
-                        format!("| @as(\"{}\") {}", serde_name, rust_name)
-                    }
-                }}
+                        format!("@as(\"{}\") ", serde_name)
+                    };
+                    format!("| {}{}", as_prefix, #rust_variant_name)
+                })
             }
             _ => {
-                // Externally tagged enums with payloads cannot be represented in ReScript
                 syn_err_spanned!(
                     variant;
                     "rescript-rs requires #[serde(tag = \"...\")] for enums with data variants. ReScript cannot represent externally tagged enums."
@@ -183,15 +180,15 @@ fn format_variant(
         },
         (false, Tagged::Adjacently { tag: _, content }) => match &variant.fields {
             Fields::Unit => {
-                quote! {{
+                quote!({
                     let serde_name: String = (#ts_name).to_string();
-                    let rust_name = #rust_variant_name;
-                    if serde_name == rust_name {
-                        format!("| {}", rust_name)
+                    let as_prefix = if serde_name == #rust_variant_name {
+                        String::new()
                     } else {
-                        format!("| @as(\"{}\") {}", serde_name, rust_name)
-                    }
-                }}
+                        format!("@as(\"{}\") ", serde_name)
+                    };
+                    format!("| {}{}", as_prefix, #rust_variant_name)
+                })
             }
             Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
                 let field = &unnamed.unnamed[0];
@@ -200,15 +197,15 @@ fn format_variant(
                 field_attr.assert_validity(field)?;
 
                 if field_attr.skip {
-                    quote! {{
+                    quote!({
                         let serde_name: String = (#ts_name).to_string();
-                        let rust_name = #rust_variant_name;
-                        if serde_name == rust_name {
-                            format!("| {}", rust_name)
+                        let as_prefix = if serde_name == #rust_variant_name {
+                            String::new()
                         } else {
-                            format!("| @as(\"{}\") {}", serde_name, rust_name)
-                        }
-                    }}
+                            format!("@as(\"{}\") ", serde_name)
+                        };
+                        format!("| {}{}", as_prefix, #rust_variant_name)
+                    })
                 } else {
                     let ty = match field_attr.type_override {
                         Some(type_override) => quote!(#type_override.to_owned()),
@@ -219,44 +216,42 @@ fn format_variant(
                     };
                     quote! {{
                         let serde_name: String = (#ts_name).to_string();
-                        let rust_name = #rust_variant_name;
+                        let as_prefix = if serde_name == #rust_variant_name {
+                            String::new()
+                        } else {
+                            format!("@as(\"{}\") ", serde_name)
+                        };
                         let content_key = #content;
                         let inner_ty: String = #ty;
-                        if serde_name == rust_name {
-                            format!("| {}({{ {}: {} }})", rust_name, content_key, inner_ty)
-                        } else {
-                            format!("| @as(\"{}\") {}({{ {}: {} }})", serde_name, rust_name, content_key, inner_ty)
-                        }
+                        format!("| {}{}({{ {}: {} }})", as_prefix, #rust_variant_name, content_key, inner_ty)
                     }}
                 }
             }
             _ => {
                 quote! {{
                     let serde_name: String = (#ts_name).to_string();
-                    let rust_name = #rust_variant_name;
+                    let as_prefix = if serde_name == #rust_variant_name {
+                        String::new()
+                    } else {
+                        format!("@as(\"{}\") ", serde_name)
+                    };
                     let content_key = #content;
                     let inner_ty: String = #parsed_ty;
-                    if serde_name == rust_name {
-                        format!("| {}({{ {}: {} }})", rust_name, content_key, inner_ty)
-                    } else {
-                        format!("| @as(\"{}\") {}({{ {}: {} }})", serde_name, rust_name, content_key, inner_ty)
-                    }
+                    format!("| {}{}({{ {}: {} }})", as_prefix, #rust_variant_name, content_key, inner_ty)
                 }}
             }
         },
         (false, Tagged::Internally { tag: _ }) => match variant_type.inline_flattened {
             Some(_) => {
-                // Internally tagged with flattened fields - the tag is already injected
-                // into the record by named.rs
                 quote! {{
                     let serde_name: String = (#ts_name).to_string();
-                    let rust_name = #rust_variant_name;
-                    let inner_ty: String = #parsed_ty;
-                    if serde_name == rust_name {
-                        format!("| {}({})", rust_name, inner_ty)
+                    let as_prefix = if serde_name == #rust_variant_name {
+                        String::new()
                     } else {
-                        format!("| @as(\"{}\") {}({})", serde_name, rust_name, inner_ty)
-                    }
+                        format!("@as(\"{}\") ", serde_name)
+                    };
+                    let inner_ty: String = #parsed_ty;
+                    format!("| {}{}({})", as_prefix, #rust_variant_name, inner_ty)
                 }}
             }
             None => match &variant.fields {
@@ -267,15 +262,15 @@ fn format_variant(
                     field_attr.assert_validity(field)?;
 
                     if field_attr.skip {
-                        quote! {{
+                        quote!({
                             let serde_name: String = (#ts_name).to_string();
-                            let rust_name = #rust_variant_name;
-                            if serde_name == rust_name {
-                                format!("| {}", rust_name)
+                            let as_prefix = if serde_name == #rust_variant_name {
+                                String::new()
                             } else {
-                                format!("| @as(\"{}\") {}", serde_name, rust_name)
-                            }
-                        }}
+                                format!("@as(\"{}\") ", serde_name)
+                            };
+                            format!("| {}{}", as_prefix, #rust_variant_name)
+                        })
                     } else {
                         let ty = match field_attr.type_override {
                             Some(type_override) => quote! { #type_override.to_owned() },
@@ -287,37 +282,37 @@ fn format_variant(
 
                         quote! {{
                             let serde_name: String = (#ts_name).to_string();
-                            let rust_name = #rust_variant_name;
-                            let inner_ty: String = #ty;
-                            if serde_name == rust_name {
-                                format!("| {}({})", rust_name, inner_ty)
+                            let as_prefix = if serde_name == #rust_variant_name {
+                                String::new()
                             } else {
-                                format!("| @as(\"{}\") {}({})", serde_name, rust_name, inner_ty)
-                            }
+                                format!("@as(\"{}\") ", serde_name)
+                            };
+                            let inner_ty: String = #ty;
+                            format!("| {}{}({})", as_prefix, #rust_variant_name, inner_ty)
                         }}
                     }
                 }
                 Fields::Unit => {
-                    quote! {{
+                    quote!({
                         let serde_name: String = (#ts_name).to_string();
-                        let rust_name = #rust_variant_name;
-                        if serde_name == rust_name {
-                            format!("| {}", rust_name)
+                        let as_prefix = if serde_name == #rust_variant_name {
+                            String::new()
                         } else {
-                            format!("| @as(\"{}\") {}", serde_name, rust_name)
-                        }
-                    }}
+                            format!("@as(\"{}\") ", serde_name)
+                        };
+                        format!("| {}{}", as_prefix, #rust_variant_name)
+                    })
                 }
                 _ => {
                     quote! {{
                         let serde_name: String = (#ts_name).to_string();
-                        let rust_name = #rust_variant_name;
-                        let inner_ty: String = #parsed_ty;
-                        if serde_name == rust_name {
-                            format!("| {}({})", rust_name, inner_ty)
+                        let as_prefix = if serde_name == #rust_variant_name {
+                            String::new()
                         } else {
-                            format!("| @as(\"{}\") {}({})", serde_name, rust_name, inner_ty)
-                        }
+                            format!("@as(\"{}\") ", serde_name)
+                        };
+                        let inner_ty: String = #parsed_ty;
+                        format!("| {}{}({})", as_prefix, #rust_variant_name, inner_ty)
                     }}
                 }
             },
@@ -334,6 +329,7 @@ fn empty_enum(ts_name: Expr, enum_attr: EnumAttr) -> DerivedTS {
     DerivedTS {
         crate_rename: crate_rename.clone(),
         inline: quote!("never".to_owned()),
+        decl_inline: None,
         docs: enum_attr.docs,
         inline_flattened: None,
         dependencies: Dependencies::new(crate_rename),

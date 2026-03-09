@@ -1,8 +1,8 @@
 #![allow(dead_code)]
 
+use rescript_rs::{Config, Dependency, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, Dependency, TS};
 
 #[derive(TS)]
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
@@ -35,10 +35,10 @@ enum SimpleEnum {
 #[test]
 fn test_stateful_enum() {
     let cfg = Config::from_env();
-    assert_eq!(Bar::decl(&cfg), r#"type bar = { field: int, }"#);
+    assert_eq!(Bar::decl(&cfg), "type bar = {\n  field: int,\n}");
     assert_eq!(Bar::dependencies(&cfg), vec![]);
 
-    assert_eq!(Foo::decl(&cfg), r#"type foo = { bar: Bar, }"#);
+    assert_eq!(Foo::decl(&cfg), "type foo = {\n  bar: bar,\n}");
     assert_eq!(
         Foo::dependencies(&cfg),
         vec![Dependency::from_ty::<Bar>(&cfg).unwrap()]
@@ -46,9 +46,9 @@ fn test_stateful_enum() {
 
     assert_eq!(
         SimpleEnum::decl(&cfg),
-        "@tag(\"type\")\ntype simpleenum = | A({ value: string }) | B({ value: int }) | C | D({ value: (string, int) }) | E({ value: Foo }) | F({ value: { a: int, b: string, } })"
+        "@tag(\"type\")\ntype simpleEnum = \n  | A({ value: string })\n  | B({ value: int })\n  | C\n  | D({ value: (string, int) })\n  | E({ value: foo })\n  | F({ value: { a: int, b: string, } })"
     );
     assert!(SimpleEnum::dependencies(&cfg)
         .into_iter()
-        .all(|dep| dep == Dependency::from_ty::<Foo>(&cfg).unwrap()),);
+        .all(|dep| dep == Dependency::from_ty::<Foo>(&cfg).unwrap()));
 }

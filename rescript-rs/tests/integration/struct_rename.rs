@@ -65,7 +65,7 @@ fn rename_all_screaming_kebab_case() {
     let cfg = Config::from_env();
     assert_eq!(
         RenameAllScreamingKebab::inline(&cfg),
-        r#"{ "CRC32C-HASH": int, "SOME-FIELD": int, "SOME-OTHER-FIELD": int, }"#
+        "{ @as(\"CRC32C-HASH\") CRC32C-HASH_: int, @as(\"SOME-FIELD\") SOME-FIELD_: int, @as(\"SOME-OTHER-FIELD\") SOME-OTHER-FIELD_: int, }"
     );
 }
 
@@ -80,7 +80,7 @@ struct RenameSerdeSpecialChar {
 #[test]
 fn serde_rename_special_char() {
     let cfg = Config::from_env();
-    assert_eq!(RenameSerdeSpecialChar::inline(&cfg), r#"{ "a/b": int, }"#);
+    assert_eq!(RenameSerdeSpecialChar::inline(&cfg), "{ @as(\"a/b\") a/b_: int, }");
 }
 
 // struct-level renames
@@ -99,7 +99,7 @@ fn test_rename_with_str_literal() {
     let cfg = Config::from_env();
     assert_eq!(
         WithStrLiteral::decl(&cfg),
-        "type renamedwithstrliteral = | A | B | C"
+        "type renamedWithStrLiteral = \n  | A\n  | B\n  | C"
     )
 }
 
@@ -117,7 +117,7 @@ fn test_rename_with_string_expression() {
     let cfg = Config::from_env();
     assert_eq!(
         WithStringExpression::decl(&cfg),
-        "type renamedwithstringexpression = | A | B | C"
+        "type renamedWithStringExpression = \n  | A\n  | B\n  | C"
     )
 }
 
@@ -135,7 +135,7 @@ fn test_rename_with_str_expression() {
     let cfg = Config::from_env();
     assert_eq!(
         WithStrExpression::decl(&cfg),
-        "type renamedwithstrexpression = | A | B | C"
+        "type renamedWithStrExpression = \n  | A\n  | B\n  | C"
     )
 }
 
@@ -153,6 +153,6 @@ fn test_rename_using_module_name() {
     let cfg = Config::from_env();
     assert_eq!(
         RenameUsingModuleName::decl(&cfg),
-        "type i_am_inside_module_struct_rename = | A | B | C"
+        "type i_am_inside_module_struct_rename = \n  | A\n  | B\n  | C"
     )
 }

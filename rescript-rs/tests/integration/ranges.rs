@@ -26,12 +26,12 @@ fn range() {
     let cfg = Config::from_env();
     assert_eq!(
         RangeTest::decl(&cfg),
-        "type rangetest = { \
-            a: { start: int, end: int }, \
-            b: { start: string, end: string }, \
-            c: { start: { start: int, end: int }, end: { start: int, end: int } }, \
-            d: { start: int, end: int }, \
-            e: { start: Inner, end: Inner }, \
+        "type rangeTest = {\n  \
+            a: { start: int, end: int },\n  \
+            b: { start: string, end: string },\n  \
+            c: { start: { start: int, end: int }, end: { start: int, end: int } },\n  \
+            d: { start: int, end: int },\n  \
+            e: { start: inner, end: inner },\n\
         }"
     );
     assert_eq!(

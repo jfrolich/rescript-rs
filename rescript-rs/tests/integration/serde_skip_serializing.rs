@@ -1,7 +1,7 @@
 #![cfg(feature = "serde-compat")]
 
-use serde::{Deserialize, Serialize};
 use rescript_rs::{Config, TS};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize, TS)]
 #[rescript(export, export_to = "serde_skip_serializing/")]
@@ -39,7 +39,7 @@ fn named() {
 
     assert_eq!(
         Named::decl(&cfg),
-        format!("type named = {{ {a}, {b}, {c}, {d}, {e}, {f}, }}")
+        format!("type named = {{\n  {a},\n  {b},\n  {c},\n  {d},\n  {e},\n  {f},\n}}")
     );
 }
 
@@ -79,6 +79,6 @@ fn overrides() {
     let cfg = Config::from_env();
     assert_eq!(
         Overrides::decl(&cfg),
-        format!("type overrides = {{ {x}, {y}, {z}, }}")
+        format!("type overrides = {{\n  {x},\n  {y},\n  {z},\n}}")
     );
 }

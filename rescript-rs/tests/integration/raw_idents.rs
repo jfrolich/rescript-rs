@@ -18,6 +18,6 @@ fn raw_idents() {
     let out = <r#struct as TS>::decl(&cfg);
     assert_eq!(
         out,
-        "type struct = { type: int, use: int, struct: int, let: int, enum: int, }"
+        "type struct = {\n  @as(\"type\") type_: int,\n  use: int,\n  struct: int,\n  @as(\"let\") let_: int,\n  enum: int,\n}"
     );
 }

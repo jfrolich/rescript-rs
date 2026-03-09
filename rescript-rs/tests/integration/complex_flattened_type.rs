@@ -42,10 +42,10 @@ fn complex_flattened_type() {
     let cfg = Config::from_env();
     assert_eq!(
         InputFieldElement::decl(&cfg),
-        "@tag(\"type\")\ntype inputfieldelement = | Label({ text: string, }) | Input({ name: option<string>, placeholder: option<string>, default: option<string>, } & (| Text | Expression | Number({ min: option<int>, max: option<int>, }) | Dropdown({ options: array<(string, string)>, })))"
+        "@tag(\"type\")\ntype inputFieldElement = \n  | Label({ text: string, })\n  | Input({ name: option<string>, placeholder: option<string>, default: option<string>, } & (| Text | Expression | Number({ min: option<int>, max: option<int>, }) | Dropdown({ options: array<(string, string)>, })))"
     );
     assert_eq!(
         InputField::decl(&cfg),
-        "type inputfield = | Label({ text: string, }) | Input({ name: option<string>, placeholder: option<string>, default: option<string>, } & (| Text | Expression | Number({ min: option<int>, max: option<int>, }) | Dropdown({ options: array<(string, string)>, })))"
+        "type inputField = | Label({ text: string, }) | Input({ name: option<string>, placeholder: option<string>, default: option<string>, } & (| Text | Expression | Number({ min: option<int>, max: option<int>, }) | Dropdown({ options: array<(string, string)>, })))"
     )
 }

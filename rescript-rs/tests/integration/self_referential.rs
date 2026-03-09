@@ -1,9 +1,9 @@
 #![allow(dead_code)]
 use std::{collections::HashMap, sync::Arc};
 
+use rescript_rs::{Config, TS};
 #[cfg(feature = "serde-compat")]
 use serde::Serialize;
-use rescript_rs::{Config, TS};
 
 #[derive(TS)]
 #[rescript(export, export_to = "self_referential/")]
@@ -32,20 +32,26 @@ fn named() {
     let cfg = Config::from_env();
     assert_eq!(
         T::decl(&cfg),
-        "type t = { \
-            t_box: T, \
-            self_box: T, \
-            t_ref: T, \
-            self_ref: T, \
-            t_arc: T, \
-            self_arc: T, \
-            has_t: { t: T, }, \
+        "type t = {\n  \
+            t_box: t,\n  \
+            self_box: t,\n  \
+            t_ref: t,\n  \
+            self_ref: t,\n  \
+            t_arc: t,\n  \
+            self_arc: t,\n  \
+            has_t: { t: t, },\n\
          }"
     );
 }
 
 #[derive(TS)]
-#[rescript(export, export_to = "self_referential/", rename = "E", tag = "type", content = "value")]
+#[rescript(
+    export,
+    export_to = "self_referential/",
+    rename = "E",
+    tag = "type",
+    content = "value"
+)]
 enum ExternallyTagged {
     A(Box<ExternallyTagged>),
     B(&'static ExternallyTagged),
@@ -81,14 +87,14 @@ fn enum_externally_tagged() {
     assert_eq!(
         ExternallyTagged::decl(&cfg),
         "@tag(\"type\")\n\
-         type e = \
-         | A({ value: E }) \
-         | B({ value: E }) \
-         | C({ value: E }) \
-         | D({ value: E }) \
-         | E({ value: (E, E, E, E) }) \
-         | F({ value: { a: E, b: E, c: Dict.t<E>, d: option<E>, e?: option<E>, f?: E, } }) \
-         | G({ value: (array<E>, array<E>, Dict.t<E>) })"
+         type e = \n  \
+         | A({ value: e })\n  \
+         | B({ value: e })\n  \
+         | C({ value: e })\n  \
+         | D({ value: e })\n  \
+         | E({ value: (e, e, e, e) })\n  \
+         | F({ value: { a: e, b: e, c: Dict.t<e>, d: option<e>, e?: option<e>, f?: e, } })\n  \
+         | G({ value: (array<e>, array<e>, Dict.t<e>) })"
     );
 }
 
@@ -123,13 +129,13 @@ fn enum_internally_tagged() {
     assert_eq!(
         InternallyTagged::decl(&cfg),
         "@tag(\"tag\")\n\
-         type i = \
-         | A(I) \
-         | B(I) \
-         | C(I) \
-         | D(I) \
-         | E(array<I>) \
-         | F({ a: I, b: I, c: Dict.t<I>, d: option<I>, e?: option<I>, f?: I, })"
+         type i = \n  \
+         | A(i)\n  \
+         | B(i)\n  \
+         | C(i)\n  \
+         | D(i)\n  \
+         | E(array<i>)\n  \
+         | F({ a: i, b: i, c: Dict.t<i>, d: option<i>, e?: option<i>, f?: i, })"
     );
 }
 
@@ -137,7 +143,10 @@ fn enum_internally_tagged() {
 #[cfg_attr(feature = "serde-compat", derive(Serialize))]
 #[rescript(export, export_to = "self_referential/", rename = "A")]
 #[cfg_attr(feature = "serde-compat", serde(tag = "tag", content = "content"))]
-#[cfg_attr(not(feature = "serde-compat"), rescript(tag = "tag", content = "content"))]
+#[cfg_attr(
+    not(feature = "serde-compat"),
+    rescript(tag = "tag", content = "content")
+)]
 enum AdjacentlyTagged {
     A(Box<AdjacentlyTagged>),
     B(&'static AdjacentlyTagged),
@@ -169,13 +178,13 @@ fn enum_adjacently_tagged() {
     assert_eq!(
         AdjacentlyTagged::decl(&cfg),
         "@tag(\"tag\")\n\
-         type a = \
-         | A({ content: A }) \
-         | B({ content: A }) \
-         | C({ content: A }) \
-         | D({ content: A }) \
-         | E({ content: array<A> }) \
-         | F({ content: { a: A, b: A, c: Dict.t<A>, d: option<A>, e?: option<A>, f?: A, } }) \
-         | G({ content: (array<A>, (A, A, A, A), Dict.t<A>) })"
+         type a = \n  \
+         | A({ content: a })\n  \
+         | B({ content: a })\n  \
+         | C({ content: a })\n  \
+         | D({ content: a })\n  \
+         | E({ content: array<a> })\n  \
+         | F({ content: { a: a, b: a, c: Dict.t<a>, d: option<a>, e?: option<a>, f?: a, } })\n  \
+         | G({ content: (array<a>, (a, a, a, a), Dict.t<a>) })"
     );
 }
