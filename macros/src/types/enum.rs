@@ -153,12 +153,10 @@ fn format_variant(
     // variant name.  ReScript v12 uses the variant constructor name as its
     // string representation by default, so @as is only needed for renames.
     let formatted = match (untagged_variant, enum_attr.tagged()?) {
-        (true, _) | (_, Tagged::Untagged) => {
-            match &variant.fields {
-                Fields::Unit => quote!(format!("| {} ", #rust_variant_name)),
-                _ => quote!(format!("| {}({})", #rust_variant_name, #parsed_ty)),
-            }
-        }
+        (true, _) | (_, Tagged::Untagged) => match &variant.fields {
+            Fields::Unit => quote!(format!("| {} ", #rust_variant_name)),
+            _ => quote!(format!("| {}({})", #rust_variant_name, #parsed_ty)),
+        },
         (false, Tagged::Externally) => match &variant.fields {
             Fields::Unit => {
                 quote!({
@@ -187,7 +185,7 @@ fn format_variant(
                     } else {
                         format!("@as(\"{}\") ", serde_name)
                     };
-                    format!("| {}{}", as_prefix, #rust_variant_name)
+                    format!("| {}{}({{}})", as_prefix, #rust_variant_name)
                 })
             }
             Fields::Unnamed(unnamed) if unnamed.unnamed.len() == 1 => {
@@ -300,7 +298,7 @@ fn format_variant(
                         } else {
                             format!("@as(\"{}\") ", serde_name)
                         };
-                        format!("| {}{}", as_prefix, #rust_variant_name)
+                        format!("| {}{}({{}})", as_prefix, #rust_variant_name)
                     })
                 }
                 _ => {

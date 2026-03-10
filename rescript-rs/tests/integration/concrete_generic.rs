@@ -83,7 +83,10 @@ mod simple {
     #[test]
     fn simple() {
         let cfg = Config::from_env();
-        assert_eq!(Simple::<String>::decl(&cfg), "type simple = {\n  t: string,\n}");
+        assert_eq!(
+            Simple::<String>::decl(&cfg),
+            "type simple = {\n  t: string,\n}"
+        );
         assert_eq!(
             WithOption::<String>::decl(&cfg),
             "type withOption = {\n  opt: option<string>,\n}"

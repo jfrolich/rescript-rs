@@ -38,6 +38,21 @@ enum EnumWithInternalTag2 {
     B(InnerB),
 }
 
+/// Mixed enum: unit variants + payload variants under `@tag`.
+/// Unit variants must emit `| Variant({})` so ReScript encodes them as
+/// `{"type": "Variant"}` (an object) instead of a plain string, matching
+/// what serde's `#[serde(tag = "type")]` expects on the Rust side.
+#[derive(TS)]
+#[cfg_attr(feature = "serde-compat", derive(Serialize))]
+#[cfg_attr(feature = "serde-compat", serde(tag = "type"))]
+#[cfg_attr(not(feature = "serde-compat"), ts(tag = "type"))]
+#[rescript(export, export_to = "union_with_internal_tag/")]
+enum MixedTaggedEnum {
+    UnitA,
+    UnitB,
+    WithData { value: f64 },
+}
+
 #[test]
 fn test_enums_with_internal_tags() {
     let cfg = Config::from_env();
@@ -49,5 +64,14 @@ fn test_enums_with_internal_tags() {
     assert_eq!(
         EnumWithInternalTag2::decl(&cfg),
         "@tag(\"type\")\ntype enumWithInternalTag2 = \n  | A(innerA)\n  | B(innerB)"
+    );
+}
+
+#[test]
+fn test_mixed_tagged_enum_unit_variants_emit_empty_record() {
+    let cfg = Config::from_env();
+    assert_eq!(
+        MixedTaggedEnum::decl(&cfg),
+        "@tag(\"type\")\ntype mixedTaggedEnum = \n  | UnitA({})\n  | UnitB({})\n  | WithData({ value: float, })"
     );
 }
