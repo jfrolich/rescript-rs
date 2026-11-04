@@ -6,7 +6,7 @@ use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote};
 use syn::{
     ext::IdentExt, spanned::Spanned, Attribute, Data, DeriveInput, Error, Expr, Fields,
-    GenericArgument, Ident, LitStr, Path, PathArguments, Result, Type,
+    GenericArgument, GenericParam, Generics, Ident, LitStr, Path, PathArguments, Result, Type,
 };
 
 const RESCRIPT_KEYWORDS: &[&str] = &[
@@ -89,6 +89,9 @@ struct ContainerAttr {
     /// `#[rescript(fallback = "path")]`: what anything the decoder rejects
     /// decodes to, `@spice.fallback(…)`.
     fallback: Option<Path>,
+    /// `serde`: also implement serde's `Serialize` and `Deserialize` with
+    /// the codec.
+    serde: bool,
 }
 
 #[derive(Default)]
@@ -98,6 +101,9 @@ struct FieldAttr {
     serde_rename: Option<String>,
     /// `#[serde(default)]` (`None`) or `#[serde(default = "path")]`.
     serde_default: Option<Option<Path>>,
+    /// `#[serde(skip_serializing_if = "path")]`: left out of what Rust
+    /// writes when `path(&value)` holds.
+    skip_serializing_if: Option<Path>,
     key: Option<String>,
     default: Option<String>,
     rust_default: Option<Expr>,
@@ -311,6 +317,8 @@ impl ContainerAttr {
                     out.krate = Some(meta.value()?.parse::<LitStr>()?.parse()?);
                 } else if meta.path.is_ident("fallback") {
                     out.fallback = Some(meta.value()?.parse::<LitStr>()?.parse()?);
+                } else if meta.path.is_ident("serde") {
+                    out.serde = true;
                 } else {
                     return Err(meta.error("unknown rescript attribute with codec"));
                 }
@@ -337,6 +345,8 @@ impl FieldAttr {
                     syn::Meta::Path(_) => None,
                     meta => Some(syn::parse_str(&meta_string(meta)?)?),
                 });
+            } else if path.is_ident("skip_serializing_if") {
+                out.skip_serializing_if = Some(syn::parse_str(&meta_string(&meta)?)?);
             } else if path.is_ident("flatten") || path.is_ident("skip") {
                 return Err(Error::new(
                     meta.span(),
@@ -595,6 +605,14 @@ fn parse_fields(fields: &syn::FieldsNamed, rename: Option<RenameRule>) -> Result
                 return Err(Error::new(
                     field.span(),
                     format!("spice would read `{key}` from Object.prototype when it is missing"),
+                ));
+            }
+
+            if attr.skip_serializing_if.is_some() && attr.serde_default.is_none() {
+                return Err(Error::new(
+                    field.span(),
+                    "#[serde(skip_serializing_if)] needs #[serde(default)], so a reader gets the \
+                     field back",
                 ));
             }
 
@@ -1177,18 +1195,21 @@ impl Gen {
             let key = &field.key;
             let value = access(&field.ident);
 
-            if let Some(with) = &field.attr.with {
-                return quote!((::std::string::String::from(#key), ::std::option::Option::Some(#with::encode::<H>(#value))));
-            }
+            let encoded = match (&field.attr.with, option_inner(&field.ty)) {
+                (Some(with), _) => quote!(::std::option::Option::Some(#with::encode::<H>(#value))),
+                (None, Some(_)) => quote!((#value).as_ref().map(|v| #spice::Spice::encode::<H>(v))),
+                (None, None) => {
+                    quote!(::std::option::Option::Some(#spice::Spice::encode::<H>(#value)))
+                }
+            };
+            let encoded = match &field.attr.skip_serializing_if {
+                Some(skip) => quote! {
+                    if #skip(#value) { ::std::option::Option::None } else { #encoded }
+                },
+                None => encoded,
+            };
 
-            match option_inner(&field.ty) {
-                Some(_) => quote! {
-                    (::std::string::String::from(#key), (#value).as_ref().map(|v| #spice::Spice::encode::<H>(v)))
-                },
-                None => quote! {
-                    (::std::string::String::from(#key), ::std::option::Option::Some(#spice::Spice::encode::<H>(#value)))
-                },
-            }
+            quote!((::std::string::String::from(#key), #encoded))
         }));
 
         quote!(#spice::object([#(#entries),*]))
@@ -1206,12 +1227,12 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
 
     check_tuples(&input.data)?;
 
-    if !input.generics.params.is_empty() {
-        return Err(Error::new(
-            input.generics.span(),
-            "Spice types cannot be generic yet",
-        ));
+    let generics = codec_generics(&gen, &input.generics)?;
+
+    if container.module.is_some() {
+        reject_skipped_fields(&input.data)?;
     }
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let ident = &input.ident;
     let name = container
@@ -1221,6 +1242,17 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
     let qualified = match &container.module {
         Some(module) => format!("{module}.{name}"),
         None => name.clone(),
+    };
+    let params: Vec<&Ident> = generics.type_params().map(|param| &param.ident).collect();
+    let rescript_type = match params.as_slice() {
+        [] => quote!(::std::string::String::from(#qualified)),
+        params => quote! {
+            format!(
+                "{}<{}>",
+                #qualified,
+                [#(<#params as #spice::Spice>::rescript_type()),*].join(", "),
+            )
+        },
     };
 
     let samples = samples(&gen, &input.data)?;
@@ -1276,7 +1308,18 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
         ""
     };
 
-    let type_line = format!("\ntype {rec}{name} =");
+    let type_vars = match params.as_slice() {
+        [] => String::new(),
+        params => format!(
+            "<{}>",
+            params
+                .iter()
+                .map(|param| type_var(param))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ),
+    };
+    let type_line = format!("\ntype {rec}{name}{type_vars} =");
 
     // `@spice.fallback(…)` with the fallback value as a ReScript literal.
     let fallback_attr = match &container.fallback {
@@ -1299,15 +1342,48 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
         None => decode,
     };
     let declare = container.module.as_ref().map(|module| {
+        let (placeholders, body) = declared_body(&gen, &container, &input, &params, body);
+
         quote! {
             #[automatically_derived]
-            impl #spice::Declare for #ident {
+            impl #impl_generics #spice::Declare for #ident #ty_generics #where_clause {
                 fn module() -> &'static str {
                     #module
                 }
 
                 fn declaration() -> ::std::string::String {
+                    #placeholders
+
                     format!("{}{}{}{}", #header, #fallback_attr, #type_line, #body)
+                }
+            }
+        }
+    });
+
+    let serde = container.serde.then(|| {
+        let mut de_generics = generics.clone();
+
+        de_generics.params.insert(0, syn::parse_quote!('de));
+
+        let (de_impl_generics, _, _) = de_generics.split_for_impl();
+
+        quote! {
+            #[automatically_derived]
+            impl #impl_generics #spice::serde_impl::Serialize for #ident #ty_generics #where_clause {
+                fn serialize<S: #spice::serde_impl::Serializer>(
+                    &self,
+                    serializer: S,
+                ) -> ::std::result::Result<S::Ok, S::Error> {
+                    #spice::serde_impl::serialize(self, serializer)
+                }
+            }
+
+            #[automatically_derived]
+            impl #de_impl_generics #spice::serde_impl::Deserialize<'de> for #ident #ty_generics #where_clause {
+                fn deserialize<D: #spice::serde_impl::Deserializer<'de>>(
+                    deserializer: D,
+                ) -> ::std::result::Result<Self, D::Error> {
+                    #spice::serde_impl::deserialize(deserializer)
                 }
             }
         }
@@ -1315,9 +1391,9 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
 
     Ok(quote! {
         #[automatically_derived]
-        impl #spice::Spice for #ident {
+        impl #impl_generics #spice::Spice for #ident #ty_generics #where_clause {
             fn rescript_type() -> ::std::string::String {
-                ::std::string::String::from(#qualified)
+                #rescript_type
             }
 
             fn samples() -> ::std::vec::Vec<Self> {
@@ -1339,7 +1415,149 @@ pub fn derive(input: DeriveInput) -> Result<TokenStream> {
         }
 
         #declare
+
+        #serde
     })
+}
+
+/// ppx-spice writes every field, so a type with a ReScript declaration can't
+/// leave one out.
+fn reject_skipped_fields(data: &Data) -> Result<()> {
+    let fields: Vec<&syn::Field> = match data {
+        Data::Struct(data) => data.fields.iter().collect(),
+        Data::Enum(data) => data.variants.iter().flat_map(|v| v.fields.iter()).collect(),
+        Data::Union(_) => vec![],
+    };
+
+    for field in fields {
+        if FieldAttr::parse(&field.attrs)?
+            .skip_serializing_if
+            .is_some()
+        {
+            return Err(Error::new(
+                field.span(),
+                "#[serde(skip_serializing_if)] needs a codec without module: ppx-spice writes \
+                 every field",
+            ));
+        }
+    }
+
+    Ok(())
+}
+
+/// The generics of a codec: type parameters, each bound by `Spice`.
+fn codec_generics(gen: &Gen, generics: &Generics) -> Result<Generics> {
+    let spice = gen.spice();
+    let mut generics = generics.clone();
+
+    for param in &mut generics.params {
+        match param {
+            GenericParam::Type(param) => {
+                param.bounds.push(syn::parse_quote!(#spice::Spice));
+                param.bounds.push(syn::parse_quote!('static));
+            }
+            param => {
+                return Err(Error::new(
+                    param.span(),
+                    "A codec can only have type parameters",
+                ))
+            }
+        }
+    }
+
+    Ok(generics)
+}
+
+/// A type parameter's ReScript type variable: `T` is `'t`.
+fn type_var(param: &Ident) -> String {
+    format!("'{}", lower_first(&param.unraw().to_string()))
+}
+
+/// The declaration's body, `Derived::0`, for a type with type parameters:
+/// derived again with each parameter replaced by a local type whose ReScript
+/// type is its type variable, so `width: T` declares `width: 't`. The local
+/// types come first, as statements of `Declare::declaration`.
+fn declared_body(
+    gen: &Gen,
+    container: &ContainerAttr,
+    input: &DeriveInput,
+    params: &[&Ident],
+    body: TokenStream,
+) -> (TokenStream, TokenStream) {
+    use syn::visit_mut::VisitMut;
+
+    struct Substitute<'a>(&'a [(Ident, Ident)]);
+
+    impl VisitMut for Substitute<'_> {
+        fn visit_type_mut(&mut self, ty: &mut Type) {
+            if let Type::Path(path) = ty {
+                if path.qself.is_none() {
+                    if let Some((_, placeholder)) =
+                        self.0.iter().find(|(param, _)| path.path.is_ident(param))
+                    {
+                        *ty = syn::parse_quote!(#placeholder);
+
+                        return;
+                    }
+                }
+            }
+
+            syn::visit_mut::visit_type_mut(self, ty);
+        }
+    }
+
+    if params.is_empty() {
+        return (quote!(), body);
+    }
+
+    let spice = gen.spice();
+    let pairs: Vec<(Ident, Ident)> = params
+        .iter()
+        .map(|param| {
+            (
+                (*param).clone(),
+                format_ident!("__RescriptTypeVar{}", param),
+            )
+        })
+        .collect();
+    let placeholders = pairs.iter().map(|(param, placeholder)| {
+        let var = type_var(param);
+
+        quote! {
+            #[derive(Clone)]
+            struct #placeholder;
+
+            impl #spice::Spice for #placeholder {
+                fn rescript_type() -> ::std::string::String {
+                    ::std::string::String::from(#var)
+                }
+
+                fn decode<H: #spice::Host>(_: &#spice::Value) -> #spice::Result<Self> {
+                    unreachable!("a type variable is only declared")
+                }
+
+                fn encode<H: #spice::Host>(&self) -> #spice::Value {
+                    unreachable!("a type variable is only declared")
+                }
+            }
+        }
+    });
+    let mut data = input.data.clone();
+
+    match &mut data {
+        Data::Struct(data) => Substitute(&pairs).visit_data_struct_mut(data),
+        Data::Enum(data) => Substitute(&pairs).visit_data_enum_mut(data),
+        Data::Union(_) => {}
+    }
+
+    let derived = match &data {
+        Data::Struct(data) => derive_struct(gen, container, data, &input.ident),
+        Data::Enum(data) => derive_enum(gen, container, data),
+        Data::Union(_) => unreachable!("rejected"),
+    };
+    let body = derived.map_or(body, |(body, _, _)| body);
+
+    (quote!(#(#placeholders)*), body)
 }
 
 /// `Spice::rescript_value`: the value as a ReScript literal.
@@ -1788,15 +2006,12 @@ fn derive_enum(gen: &Gen, container: &ContainerAttr, data: &syn::DataEnum) -> Re
     }
 
     let unknown = match variants.iter().find(|v| v.other) {
-        // A unit variant: no arguments.
+        // A constructor added after this build, whatever its arguments, so
+        // a reader deployed before it keeps reading.
         Some(v) => {
             let constructor = &v.variant.ident;
 
-            quote! {{
-                #spice::variant::arity_of(#kind, &items, 0, json)?;
-
-                Ok(Self::#constructor)
-            }}
+            quote!(Ok(Self::#constructor))
         }
         None => quote!(Err(#spice::variant::unknown_of(#kind, &items))),
     };
