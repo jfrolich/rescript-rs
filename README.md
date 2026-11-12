@@ -117,12 +117,81 @@ serde derives and serde reads and writes the JSON ppx-spice does. A codec can ha
 its declaration has a type variable for each (`struct Size<T>` declares `type t<'t> = {width: 't, …}`) and
 `Size<f64>` is `Size.t<float>` in the types that use it. `f32` reads as the nearest `f32` and writes its shortest decimal (`0.1`).
 Field attributes: `name` (the ReScript field), `key` (`@spice.key`), `default` (`@spice.default`, a ReScript
-expression; simple literals and constructors are translated, otherwise add `rust_default`), `optional` (`field?:`),
+expression; simple literals and constructors are translated, otherwise add `rust_default`), `optional` (`field?:`; `#[serde(skip_serializing_if = "Option::is_none")]` on an `Option` field implies it),
 `codec` + `with` (`@spice.codec` and the Rust module with `decode`/`encode`/`samples`). Variant attribute: `rename`
 (ReScript's `@as`, which names the constructor in memory and in JSON; `@spice.as`, the JSON name only, on a
 polymorphic variant, which ReScript can't rename). A `Host` says how values JSON cannot hold (`Infinity`, `bigint`, `Set`) stand in a
 `serde_json::Value`. `Spice::samples` and `Module::codecs` exist to test a type's Rust codec against the ReScript
 one.
+
+### Calling Rust through wasm-bindgen (`wasm-bindgen` feature)
+
+Use native serde derives and `#[rescript(codec, wasm)]` on boundary types:
+
+```rust
+#[derive(Clone, serde::Serialize, serde::Deserialize, rescript_rs::ReScript)]
+#[rescript(codec, wasm, module = "Geometry")]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum Fit {
+    Unbounded,
+    Within { width: f64, height: f64 },
+}
+```
+
+The declaration uses `@tag("type")`, `@as("unbounded") Unbounded({})` and
+`@as("within") Within({width: float, height: float})`. The empty inline record
+keeps unit variants as tagged objects, not runtime strings. Renamed record
+fields receive both `@as` and `@spice.key`: runtime and JSON keys match.
+Payload enums must be internally tagged. A payload-free enum needs no tag: it
+is an ordinary variant, the same string on both sides.
+
+```rust
+#[derive(Clone, Copy, serde::Serialize, serde::Deserialize, rescript_rs::ReScript)]
+#[rescript(codec, wasm, module = "Library")]
+enum Format {
+    Hardcover,
+    Paperback,
+    #[serde(rename = "e-book")]
+    Ebook,
+}
+```
+
+That is `Hardcover | Paperback | @as("e-book") Ebook`: serde's names unless
+renamed. `poly` (`[#Hardcover | #Paperback | #"e-book"]`) and
+`#[serde(rename_all = …)]` are choices, not requirements.
+
+`#[rescript_rs::wasm]` on a function exports it through **direct native serde**
+(`serde-wasm-bindgen`), without a `serde_json::Value` bridge. Add its generated
+`<function>_rescript()` description to `Module::function`. Where layouts match,
+the generated binding is just `Ok(wasm(arg0, arg1))`: no JS Spice conversion or
+copying, and no redundant validation of trusted same-build Rust output.
+
+Eligibility is recursive through records, arrays, boxes and tagged variants.
+An `Option` field needs `#[serde(skip_serializing_if = "Option::is_none")]`,
+which alone makes it an optional ReScript field (`label?: string`): omitted
+keys are valid ReScript optional fields. Optional fields whose values can themselves be null
+(JSON, unit or another option) are rejected: native serde would lose the
+difference between a present null and an absent field. Standalone options, unit values and recursive layouts
+retain JS codecs where representations differ, but still use native serde in
+Rust. Unknown/custom serde attributes are rejected rather than guessing.
+`#[rescript(serde)]` is the legacy Spice-to-serde adapter and cannot be combined
+with `wasm`; derive `serde::Serialize` and `serde::Deserialize` instead.
+
+`#[rescript_rs::wasm(codec)]` explicitly retains the original JSON-tree bridge
+for legacy/custom codecs. Native serde owns its validation rules and errors;
+it does not reproduce JSON normalization for non-finite floats, f32, defaults or
+tuples. f32 is deliberately not a built-in `Wasm` type. Never bypass decoders for
+arbitrary external JSON. This optimization is confined to the typed WASM boundary.
+
+Enable `wasm-bindgen` in the final WASM crate and `pub use` each library's
+`<function>_wasm` export there so the linker retains it. The application function
+stays an ordinary typed Rust function. Errors are thrown as JS exceptions;
+successful generated calls return `Ok(value)`. `name` and `js_name` rename the
+ReScript function and the export, respectively.
+
+`e2e/wasm/run.sh` compiles real generated ReScript and optimized WASM and runs
+them together in Node, covering tagged unit/payload variants, renamed keys,
+optional fields, arrays and the standalone-option codec fallback.
 
 ### Configuration
 When using `#[rescript(export)]` on a type, rescript-rs generates a test which writes the bindings for it to disk.\
@@ -172,6 +241,7 @@ When rescript-rs encounters an unsupported serde attribute, a warning is emitted
 | tokio-impl         | Implement `TS` for types from *tokio*                                                                                                               |
 | jiff-impl          | Implement `TS` for types from *jiff*                                                                                                                |
 | arrayvec-impl      | Implement `TS` for types from *arrayvec*                                                                                                            |
+| wasm-bindgen       | The wasm-bindgen exports of `#[rescript_rs::wasm]` functions, and `rescript_rs::wasm`                                                               |
 
 ### Contributing
 Contributions are always welcome!

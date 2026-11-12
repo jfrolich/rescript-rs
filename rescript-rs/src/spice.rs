@@ -15,9 +15,9 @@
 
 use std::borrow::Cow;
 
-use crate::export::format::format;
-
 pub use serde_json::{self, Map, Number, Value};
+
+use crate::export::format::format;
 
 /// `Spice.decodeError`.
 #[derive(Debug, Clone, PartialEq)]
@@ -257,6 +257,365 @@ pub struct Module<H: Host = Plain> {
 enum Item<H: Host> {
     Declaration(String, Codec),
     Module(Module<H>),
+    Function(String),
+}
+
+/// A native serde type whose ReScript runtime layout is known to the generator.
+/// Implemented by `#[rescript(codec, wasm)]` alongside ordinary serde derives.
+///
+/// A present JSON null must not silently become an absent optional field:
+/// ```compile_fail
+/// use rescript_rs::{ReScript, spice::Wasm};
+/// #[derive(Clone, serde::Serialize, serde::Deserialize, ReScript)]
+/// #[rescript(codec, wasm)]
+/// struct Invalid {
+///     #[serde(skip_serializing_if = "Option::is_none")]
+///     value: Option<serde_json::Value>,
+/// }
+/// let _ = Invalid::input_identity();
+/// ```
+pub trait Wasm: Spice + 'static + ::serde::Serialize + ::serde::de::DeserializeOwned {
+    /// Whether a present value can itself serialize as null. Such a value
+    /// cannot be an optional field: serde would read it back as None.
+    const NULLABLE: bool = false;
+    fn input_identity() -> bool {
+        false
+    }
+    fn output_identity() -> bool {
+        false
+    }
+}
+
+/// Recursive layouts conservatively retain their JS codecs.
+pub fn identity_once<T: 'static>(check: impl FnOnce() -> bool) -> bool {
+    use std::{any::TypeId, cell::RefCell, collections::HashSet};
+    thread_local! { static VISITING: RefCell<HashSet<TypeId>> = RefCell::new(HashSet::new()); }
+    let id = TypeId::of::<T>();
+    if !VISITING.with(|set| set.borrow_mut().insert(id)) {
+        return false;
+    }
+    let result = check();
+    VISITING.with(|set| set.borrow_mut().remove(&id));
+    result
+}
+
+macro_rules! wasm_scalar {
+    ($($ty:ty),*) => {$(
+        impl Wasm for $ty {
+            fn input_identity() -> bool { true }
+            fn output_identity() -> bool { true }
+        }
+    )*};
+}
+wasm_scalar!(String, bool, i32, f64);
+impl Wasm for Value {
+    const NULLABLE: bool = true;
+    fn input_identity() -> bool {
+        true
+    }
+    fn output_identity() -> bool {
+        true
+    }
+}
+impl Wasm for () {
+    const NULLABLE: bool = true;
+}
+impl<T: Wasm> Wasm for Vec<T> {
+    fn input_identity() -> bool {
+        T::input_identity()
+    }
+    fn output_identity() -> bool {
+        T::output_identity()
+    }
+}
+impl<T: Wasm> Wasm for Option<T> {
+    const NULLABLE: bool = true;
+}
+impl<T: Wasm> Wasm for Box<T> {
+    const NULLABLE: bool = T::NULLABLE;
+    fn input_identity() -> bool {
+        T::input_identity()
+    }
+    fn output_identity() -> bool {
+        T::output_identity()
+    }
+}
+
+/// A boundary value's declared type and whether it needs a JS codec.
+#[derive(Debug, Clone, PartialEq)]
+pub struct BoundaryType {
+    pub ty: String,
+    pub identity: bool,
+}
+
+/// A Rust function ReScript calls through wasm-bindgen.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Function {
+    pub name: &'static str,
+    pub js_name: &'static str,
+    pub docs: &'static [&'static str],
+    pub args: Vec<BoundaryType>,
+    pub output: BoundaryType,
+}
+
+impl Function {
+    fn render(&self, js_module: &str) -> String {
+        let mut module = self.name.to_owned();
+        module[..1].make_ascii_uppercase();
+        let args: Vec<String> = (0..self.args.len()).map(|i| format!("arg{i}")).collect();
+        let ty = |value: &BoundaryType| {
+            if value.identity {
+                value.ty.clone()
+            } else {
+                "JSON.t".into()
+            }
+        };
+        let arg_types = match self.args.as_slice() {
+            [] => "unit".into(),
+            [one] => ty(one),
+            many => format!("({})", many.iter().map(ty).collect::<Vec<_>>().join(", ")),
+        };
+        let mut out: String = self
+            .docs
+            .iter()
+            .map(|line| format!("// {line}\n"))
+            .collect();
+
+        out.push_str(&format!(
+            "module {module} = {{\n  @module({})\n  external wasm: {} => {} = {}\n\n",
+            rescript_string(js_module),
+            arg_types,
+            ty(&self.output),
+            rescript_string(self.js_name),
+        ));
+        let parameters = match args.as_slice() {
+            [] => "()".into(),
+            [one] => one.clone(),
+            _ => format!("({})", args.join(", ")),
+        };
+        let converted: Vec<String> = self
+            .args
+            .iter()
+            .zip(&args)
+            .filter_map(|(ty, arg)| {
+                (!ty.identity)
+                    .then(|| format!("    let {arg} = {}\n", ValueCodec::of(&ty.ty).encode(arg)))
+            })
+            .collect();
+        let call = format!("wasm({})", args.join(", "));
+        let call = if self.output.identity {
+            format!("Ok({call})")
+        } else {
+            ValueCodec::of(&self.output.ty).decode(&call)
+        };
+
+        if converted.is_empty() {
+            out.push_str(&format!("  let call = {parameters} => {call}\n"));
+        } else {
+            out.push_str(&format!(
+                "  let call = {parameters} => {{\n{}\n    {call}\n  }}\n",
+                converted.concat()
+            ));
+        }
+        out.push_str(&format!("}}\nlet {} = {module}.call\n", self.name));
+        out
+    }
+}
+
+/// The codecs ppx-spice reads and writes a value of a ReScript type
+/// expression with, as `codecs.ml` picks them for an array item: a
+/// built-in type's from `Spice`, which take their type arguments' codecs
+/// and the value in one call, and any other type's own `t_encode` and
+/// `t_decode`, which take them one at a time.
+#[derive(Debug, PartialEq)]
+enum ValueCodec {
+    Spice {
+        encode: &'static str,
+        decode: &'static str,
+        args: Vec<ValueCodec>,
+    },
+    Named {
+        name: String,
+        args: Vec<ValueCodec>,
+    },
+    /// `JSON.t`, which is its own encoding.
+    Json,
+}
+
+impl ValueCodec {
+    fn of(rescript_type: &str) -> Self {
+        let mut tokens = TypeTokens(rescript_type).peekable();
+        let codec = Self::parse(&mut tokens, rescript_type);
+
+        if let Some(token) = tokens.next() {
+            panic!("unexpected `{token}` in the ReScript type `{rescript_type}`");
+        }
+
+        codec
+    }
+
+    fn parse(tokens: &mut std::iter::Peekable<TypeTokens<'_>>, source: &str) -> Self {
+        let name = match tokens.next() {
+            Some(name) if name.starts_with(|c: char| c.is_alphabetic() || c == '_') => name,
+            Some(token) => panic!(
+                "a function called from ReScript cannot take or return `{source}`: \
+                 ppx-spice has no named codec for `{token}`, so give the type a name"
+            ),
+            None => panic!("the ReScript type `{source}` ends early"),
+        };
+        let mut args = vec![];
+
+        if tokens.peek() == Some(&"<") {
+            tokens.next();
+
+            loop {
+                args.push(Self::parse(tokens, source));
+
+                match tokens.next() {
+                    Some(",") => {}
+                    Some(">") => break,
+                    _ => panic!("unclosed `<` in the ReScript type `{source}`"),
+                }
+            }
+        }
+
+        let (encode, decode) = match name {
+            "string" => ("stringToJson", "stringFromJson"),
+            "int" => ("intToJson", "intFromJson"),
+            "bigint" => ("bigintToJson", "bigintFromJson"),
+            "float" => ("floatToJson", "floatFromJson"),
+            "bool" => ("boolToJson", "boolFromJson"),
+            "unit" => ("unitToJson", "unitFromJson"),
+            "array" => ("arrayToJson", "arrayFromJson"),
+            "list" => ("listToJson", "listFromJson"),
+            "option" => ("optionToNullableJson", "optionFromJson"),
+            "Js.null" | "Js.Null.t" | "Null.t" => ("nullToJson", "nullFromJson"),
+            "result" | "Result.t" | "Belt.Result.t" => ("resultToJson", "resultFromJson"),
+            "dict" | "Dict.t" | "Js.Dict.t" => return Self::dict(args),
+            "JSON.t" | "Js.Json.t" => return Self::Json,
+            _ => {
+                return Self::Named {
+                    name: name.to_owned(),
+                    args,
+                }
+            }
+        };
+
+        Self::Spice {
+            encode,
+            decode,
+            args,
+        }
+    }
+
+    /// A dict of optional values leaves out the `None`s.
+    fn dict(mut args: Vec<Self>) -> Self {
+        match args.as_mut_slice() {
+            [Self::Spice {
+                encode: "optionToNullableJson",
+                args: values,
+                ..
+            }] => Self::Spice {
+                encode: "dictOptionalToJson",
+                decode: "dictFromJson",
+                args: vec![Self::Spice {
+                    encode: "optionToJson",
+                    decode: "optionFromJson",
+                    args: std::mem::take(values),
+                }],
+            },
+            _ => Self::Spice {
+                encode: "dictToJson",
+                decode: "dictFromJson",
+                args,
+            },
+        }
+    }
+
+    /// The expression that encodes `value`.
+    fn encode(&self, value: &str) -> String {
+        self.apply(true, value)
+    }
+
+    /// The expression that decodes `json`.
+    fn decode(&self, json: &str) -> String {
+        match self {
+            Self::Spice { args, .. } if !args.is_empty() => {
+                format!("{json}->{}", self.apply(false, "_"))
+            }
+            Self::Spice { .. } => format!("{json}->{}", self.name(false)),
+            Self::Named { args, .. } if args.is_empty() => format!("{json}->{}", self.name(false)),
+            _ => self.apply(false, json),
+        }
+    }
+
+    fn apply(&self, encode: bool, value: &str) -> String {
+        match self {
+            Self::Spice { args, .. } => {
+                let mut args = Self::functions(args, encode);
+
+                args.push(value.to_owned());
+                format!("{}({})", self.name(encode), args.join(", "))
+            }
+            Self::Named { .. } => format!("{}({value})", self.function(encode)),
+            Self::Json if encode => value.to_owned(),
+            Self::Json => format!("Ok({value})"),
+        }
+    }
+
+    /// The codec as a function of the value.
+    fn function(&self, encode: bool) -> String {
+        match self {
+            Self::Spice { args, .. } if args.is_empty() => self.name(encode),
+            Self::Spice { .. } => self.apply(encode, "..."),
+            Self::Named { args, .. } => {
+                let args: String = Self::functions(args, encode)
+                    .iter()
+                    .map(|arg| format!("({arg})"))
+                    .collect();
+
+                format!("{}{args}", self.name(encode))
+            }
+            Self::Json if encode => "v => v".into(),
+            Self::Json => "v => Ok(v)".into(),
+        }
+    }
+
+    fn functions(codecs: &[Self], encode: bool) -> Vec<String> {
+        codecs.iter().map(|codec| codec.function(encode)).collect()
+    }
+
+    fn name(&self, encode: bool) -> String {
+        match (self, encode) {
+            (Self::Spice { encode, .. }, true) => format!("Spice.{encode}"),
+            (Self::Spice { decode, .. }, false) => format!("Spice.{decode}"),
+            (Self::Named { name, .. }, true) => format!("{name}_encode"),
+            (Self::Named { name, .. }, false) => format!("{name}_decode"),
+            (Self::Json, _) => unreachable!("JSON.t has no codec"),
+        }
+    }
+}
+
+/// The names and punctuation of a ReScript type expression.
+struct TypeTokens<'a>(&'a str);
+
+impl<'a> Iterator for TypeTokens<'a> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<&'a str> {
+        let rest = self.0.trim_start();
+        let first = rest.chars().next()?;
+        let len = if first.is_alphanumeric() || first == '_' {
+            rest.find(|c: char| !(c.is_alphanumeric() || c == '_' || c == '.' || c == '\''))
+                .unwrap_or(rest.len())
+        } else {
+            first.len_utf8()
+        };
+        let (token, rest) = rest.split_at(len);
+
+        self.0 = rest;
+        Some(token)
+    }
 }
 
 /// A type's `encode(decode(json))`, for testing a type's Rust codec
@@ -325,6 +684,16 @@ impl<H: Host> Module<H> {
         self
     }
 
+    /// A function exported from the wasm-bindgen module at `js_module`
+    /// (as the generated file imports it, e.g. `./wasm/app.js`), called as
+    /// `name(arg, …)`: it encodes its arguments, calls the export and
+    /// decodes what comes back, a `result<output, Spice.decodeError>`. See
+    /// `rescript_rs::wasm`.
+    pub fn function(mut self, js_module: &str, function: Function) -> Self {
+        self.items.push(Item::Function(function.render(js_module)));
+        self
+    }
+
     /// `module Child = { … }`, for a module named `Parent.Child`.
     pub fn nested(mut self, module: Module<H>) -> Self {
         assert_eq!(
@@ -350,6 +719,7 @@ impl<H: Host> Module<H> {
             .flat_map(|item| match item {
                 Item::Declaration(_, codec) => vec![codec.clone()],
                 Item::Module(module) => module.codecs(),
+                Item::Function(_) => vec![],
             })
             .collect()
     }
@@ -377,6 +747,7 @@ impl<H: Host> Module<H> {
                     out.push_str(&format(&unqualify_all(text, self.name, root), depth));
                     out.push('\n');
                 }
+                Item::Function(text) => out.push_str(&unqualify_all(text, self.name, root)),
                 Item::Module(module) => {
                     let child = module.name.rsplit_once('.').map_or(module.name, |(_, c)| c);
                     let body = module.body(root);
@@ -1353,5 +1724,60 @@ pub mod serde_impl {
             }
             Failure::Throw(message) => D::Error::custom(message),
         })
+    }
+}
+
+#[cfg(test)]
+mod value_codec {
+    use super::ValueCodec;
+
+    fn codecs(rescript_type: &str) -> (String, String) {
+        let codec = ValueCodec::of(rescript_type);
+
+        (codec.encode("x"), codec.decode("json"))
+    }
+
+    /// A generic type's codec takes its type arguments' codecs one call at
+    /// a time and a `Spice` codec takes them with the value; an optional
+    /// dict value is left out, an optional argument is `null`.
+    #[test]
+    fn a_value_is_read_with_the_codecs_ppx_spice_picks() {
+        let cases = [
+            (
+                "Shapes.pair<int, array<Shapes.t>>",
+                "Shapes.pair_encode(Spice.intToJson)(Spice.arrayToJson(Shapes.t_encode, ...))(x)",
+                "Shapes.pair_decode(Spice.intFromJson)(Spice.arrayFromJson(Shapes.t_decode, ...))(json)",
+            ),
+            (
+                "array<option<generic<float>>>",
+                "Spice.arrayToJson(Spice.optionToNullableJson(generic_encode(Spice.floatToJson), ...), x)",
+                "json->Spice.arrayFromJson(Spice.optionFromJson(generic_decode(Spice.floatFromJson), ...), _)",
+            ),
+            (
+                "dict<option<int>>",
+                "Spice.dictOptionalToJson(Spice.optionToJson(Spice.intToJson, ...), x)",
+                "json->Spice.dictFromJson(Spice.optionFromJson(Spice.intFromJson, ...), _)",
+            ),
+            (
+                "result<string, Null.t<JSON.t>>",
+                "Spice.resultToJson(Spice.stringToJson, Spice.nullToJson(v => v, ...), x)",
+                "json->Spice.resultFromJson(Spice.stringFromJson, Spice.nullFromJson(v => Ok(v), ...), _)",
+            ),
+            ("JSON.t", "x", "Ok(json)"),
+        ];
+
+        for (rescript_type, encode, decode) in cases {
+            assert_eq!(
+                codecs(rescript_type),
+                (encode.to_owned(), decode.to_owned()),
+                "{rescript_type}"
+            );
+        }
+    }
+
+    #[test]
+    #[should_panic(expected = "give the type a name")]
+    fn a_tuple_has_no_named_codec() {
+        ValueCodec::of("array<(int, string)>");
     }
 }
